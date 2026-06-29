@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio Review Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ===================== SCREEN UI ===================== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy: #0d1b2a;
+  --navy-mid: #1a2e45;
+  --gold: #b8972a;
+  --gold-light: #d4af5a;
+  --gold-pale: #f0e6c8;
+  --cream: #faf8f4;
+  --ink: #1c1c1c;
+  --muted: #6b7280;
+  --border: #ddd5c0;
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+  background: #f0ece4;
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+/* ---- App Shell ---- */
+.app-header {
+  background: var(--navy);
+  padding: 18px 40px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 3px solid var(--gold);
+}
+.app-header .logo-mark {
+  width: 38px; height: 38px;
+  border: 2px solid var(--gold);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px; color: var(--gold); font-weight: 600;
+}
+.app-header h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 22px; font-weight: 500; color: #fff; letter-spacing: 2px;
+}
+.app-header span {
+  font-size: 11px; color: var(--gold-light); letter-spacing: 3px;
+  text-transform: uppercase; margin-top: 2px; display: block;
+}
+
+.app-body {
+  max-width: 960px; margin: 0 auto; padding: 40px 24px;
+}
+
+/* ---- Steps ---- */
+.step-tabs {
+  display: flex; gap: 0; margin-bottom: 32px;
+  border-bottom: 2px solid var(--border);
+}
+.step-tab {
+  padding: 10px 22px; font-size: 11px; letter-spacing: 2px;
+  text-transform: uppercase; cursor: pointer; color: var(--muted);
+  border-bottom: 3px solid transparent; margin-bottom: -2px;
+  font-weight: 500; transition: all .2s;
+}
+.step-tab.active { color: var(--navy); border-color: var(--gold); }
+.step-tab:hover:not(.active) { color: var(--navy-mid); }
+
+.step-panel { display: none; }
+.step-panel.active { display: block; }
+
+/* ---- Cards ---- */
+.card {
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 3px; padding: 28px 32px; margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+.card-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 22px;
+  padding-bottom: 14px; border-bottom: 1px solid var(--gold-pale);
+}
+.part-badge {
+  background: var(--navy); color: var(--gold-light);
+  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 2px; font-weight: 600; white-space: nowrap;
+}
+.card-header h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px; font-weight: 500; color: var(--navy);
+}
+
+/* ---- Form Elements ---- */
+.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.field-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+.field-group { display: flex; flex-direction: column; gap: 5px; }
+.field-group.full { grid-column: 1 / -1; }
+label {
+  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+  color: var(--muted); font-weight: 600;
+}
+input[type=text], input[type=date], select, textarea {
+  border: 1px solid var(--border); border-radius: 2px;
+  padding: 9px 12px; font-family: 'Montserrat', sans-serif;
+  font-size: 13px; color: var(--ink); background: var(--cream);
+  transition: border .2s; outline: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--gold); background: #fff;
+}
+textarea { resize: vertical; min-height: 72px; }
+
+.status-row { display: flex; align-items: center; gap: 10px; }
+.status-dot {
+  width: 14px; height: 14px; border-radius: 50%; cursor: pointer;
+  border: 2px solid transparent; transition: transform .15s;
+}
+.status-dot:hover { transform: scale(1.2); }
+.status-dot.green { background: #22c55e; }
+.status-dot.yellow { background: #eab308; }
+.status-dot.red { background: #ef4444; }
+.status-dot.selected { border-color: var(--navy); box-shadow: 0 0 0 2px rgba(0,0,0,.15); }
+.status-label { font-size: 11px; color: var(--muted); }
+
+/* ---- Dynamic Rows ---- */
+.dynamic-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+.dynamic-row {
+  display: grid; align-items: start; gap: 10px;
+  background: var(--cream); padding: 12px; border-radius: 2px;
+  border: 1px solid var(--border);
+}
+.dynamic-row.asset-row { grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 32px; }
+.dynamic-row.fund-row  { grid-template-columns: 2fr 1fr 1fr 1fr 1fr 32px; }
+.dynamic-row.action-row { grid-template-columns: 2fr 1fr 1fr 32px; }
+.dynamic-row.sim-row { grid-template-columns: 1fr 1fr 1fr 1fr 32px; }
+.dynamic-row input, .dynamic-row select { background: #fff; }
+.btn-remove {
+  width: 28px; height: 28px; border: none; background: #fee2e2;
+  color: #dc2626; border-radius: 2px; cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center; margin-top: 18px;
+  flex-shrink: 0;
+}
+.btn-remove:hover { background: #fecaca; }
+.btn-add {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px; border: 1px dashed var(--gold);
+  background: transparent; color: var(--navy); border-radius: 2px;
+  cursor: pointer; font-size: 11px; letter-spacing: 1px;
+  text-transform: uppercase; font-family: 'Montserrat', sans-serif;
+  font-weight: 600; transition: all .2s;
+}
+.btn-add:hover { background: var(--gold-pale); }
+
+/* ---- Generate Button ---- */
+.generate-bar {
+  background: var(--navy); border-radius: 3px;
+  padding: 24px 32px; display: flex; align-items: center;
+  justify-content: space-between; margin-top: 32px;
+}
+.generate-bar p { color: var(--gold-pale); font-size: 12px; }
+.btn-generate {
+  background: var(--gold); color: var(--navy);
+  border: none; padding: 12px 32px; border-radius: 2px;
+  font-family: 'Montserrat', sans-serif; font-size: 12px;
+  letter-spacing: 2px; text-transform: uppercase; font-weight: 700;
+  cursor: pointer; transition: background .2s;
+}
+.btn-generate:hover { background: var(--gold-light); }
+
+/* ===================== PRINT / PDF ===================== */
+@media print {
+  @page {
+    size: A4; margin: 0;
+  }
+  body { background: #fff; }
+  .app-header, .app-body, .no-print { display: none !important; }
+  .pdf-document { display: block !important; }
+}
+
+.pdf-document { display: none; }
+
+/* PDF Pages */
+.pdf-page {
+  width: 210mm; min-height: 297mm;
+  background: #fff;
+  position: relative;
+  page-break-after: always;
+  overflow: hidden;
+}
+.pdf-page:last-child { page-break-after: avoid; }
+
+/* Cover Page */
+.cover-page {
+  background: var(--navy);
+  display: flex; flex-direction: column;
+}
+.cover-top-bar {
+  height: 8mm;
+  background: var(--gold);
+}
+.cover-body {
+  flex: 1; display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
+  padding: 20mm 24mm;
+  position: relative;
+}
+.cover-watermark {
+  position: absolute; bottom: 20mm; right: 20mm;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 120px; font-weight: 300;
+  color: rgba(255,255,255,.04); line-height: 1;
+  letter-spacing: -4px; user-select: none;
+}
+.cover-eyebrow {
+  font-size: 9px; letter-spacing: 5px; color: var(--gold-light);
+  text-transform: uppercase; margin-bottom: 6mm; font-weight: 500;
+}
+.cover-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 46px; font-weight: 300; color: #fff;
+  letter-spacing: 4px; text-align: center; line-height: 1.15;
+  margin-bottom: 2mm;
+}
+.cover-title em {
+  font-style: italic; color: var(--gold-light); font-weight: 300;
+}
+.cover-divider {
+  width: 60mm; height: 1px; background: var(--gold);
+  margin: 8mm auto;
+}
+.cover-client {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px; color: var(--gold-pale); font-weight: 400;
+  text-align: center; letter-spacing: 1px;
+}
+.cover-meta {
+  margin-top: 14mm; display: flex; gap: 12mm;
+}
+.cover-meta-item { text-align: center; }
+.cover-meta-label {
+  font-size: 8px; letter-spacing: 3px; text-transform: uppercase;
+  color: rgba(255,255,255,.4); display: block; margin-bottom: 3px;
+}
+.cover-meta-value {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 16px; color: var(--gold-light);
+}
+.cover-bottom-bar {
+  height: 16mm; background: rgba(0,0,0,.3);
+  display: flex; align-items: center;
+  padding: 0 16mm; gap: 8mm;
+}
+.cover-bottom-bar .firm-name {
+  font-size: 9px; letter-spacing: 4px; text-transform: uppercase;
+  color: rgba(255,255,255,.5);
+}
+.cover-bottom-bar::before {
+  content: ''; flex: 1; height: 1px;
+  background: rgba(255,255,255,.1);
+}
+
+/* Inner Page Layout */
+.inner-page { padding: 0; }
+.page-header {
+  background: var(--navy); height: 18mm;
+  display: flex; align-items: center; padding: 0 16mm;
+  justify-content: space-between;
+}
+.page-header .part-label {
+  font-size: 8px; letter-spacing: 4px; color: var(--gold-light);
+  text-transform: uppercase;
+}
+.page-header .page-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px; color: #fff; letter-spacing: 2px; font-weight: 400;
+}
+.page-header .client-mini {
+  font-size: 8px; color: rgba(255,255,255,.45); letter-spacing: 1px;
+  text-align: right;
+}
+.gold-rule { height: 2px; background: var(--gold); }
+.page-content { padding: 10mm 16mm 14mm; }
+
+/* Section Headings */
+.section-label {
+  font-size: 7.5px; letter-spacing: 3.5px; text-transform: uppercase;
+  color: var(--gold); font-weight: 600; margin-bottom: 3mm;
+  display: flex; align-items: center; gap: 6px;
+}
+.section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--gold-pale);
+}
+.section-heading {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px; color: var(--navy); font-weight: 500;
+  margin-bottom: 5mm; letter-spacing: .5px;
+}
+
+/* Info Grid */
+.info-grid {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 4mm 8mm; margin-bottom: 7mm;
+}
+.info-cell { border-bottom: 1px solid var(--border); padding-bottom: 3mm; }
+.info-cell .lbl {
+  font-size: 7px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); display: block; margin-bottom: 1.5mm;
+}
+.info-cell .val {
+  font-size: 13px; color: var(--ink); font-weight: 500;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 9px; border-radius: 20px; font-size: 9px;
+  font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
+}
+.status-badge.green { background: #dcfce7; color: #15803d; }
+.status-badge.yellow { background: #fef9c3; color: #854d0e; }
+.status-badge.red { background: #fee2e2; color: #b91c1c; }
+.status-badge::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+}
+
+/* Tables */
+.pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 6mm; font-size: 10px; }
+.pdf-table thead tr {
+  background: var(--navy); color: #fff;
+}
+.pdf-table thead th {
+  padding: 3.5mm 4mm; text-align: left; font-size: 7.5px;
+  letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;
+}
+.pdf-table tbody tr:nth-child(even) { background: #f9f7f3; }
+.pdf-table tbody td { padding: 3mm 4mm; color: var(--ink); border-bottom: 1px solid #ede8df; }
+.pdf-table tbody tr:last-child td { border-bottom: none; }
+.pdf-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.pdf-table .tag {
+  display: inline-block; padding: 1px 6px; border-radius: 2px;
+  font-size: 8px; font-weight: 600; letter-spacing: .5px;
+}
+.tag-buy { background: #dcfce7; color: #15803d; }
+.tag-sell { background: #fee2e2; color: #b91c1c; }
+.tag-hold { background: #fef9c3; color: #854d0e; }
+.tag-switch { background: #ede9fe; color: #6d28d9; }
+.tag-review { background: #e0f2fe; color: #0369a1; }
+
+/* Comments Block */
+.comment-block {
+  background: var(--cream); border-left: 3px solid var(--gold);
+  padding: 4mm 5mm; margin-bottom: 5mm; border-radius: 0 2px 2px 0;
+}
+.comment-block .cb-label {
+  font-size: 7px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 2mm; font-weight: 600;
+}
+.comment-block p { font-size: 10.5px; line-height: 1.7; color: #374151; }
+
+/* Simulation Box */
+.sim-box {
+  background: var(--navy); border-radius: 3px;
+  padding: 6mm 8mm; color: #fff; margin-bottom: 5mm;
+}
+.sim-box .sim-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 15px; color: var(--gold-light); margin-bottom: 4mm;
+}
+.sim-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm;
+}
+.sim-cell .sim-lbl {
+  font-size: 7px; letter-spacing: 2px; text-transform: uppercase;
+  color: rgba(255,255,255,.45); display: block; margin-bottom: 1.5mm;
+}
+.sim-cell .sim-val {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 20px; color: var(--gold-light);
+}
+
+/* Return Summary Cards */
+.return-cards {
+  display: grid; grid-template-columns: repeat(3,1fr); gap: 4mm; margin-bottom: 6mm;
+}
+.return-card {
+  border: 1px solid var(--border); border-radius: 2px;
+  padding: 4mm; text-align: center;
+}
+.return-card .rc-lbl {
+  font-size: 7.5px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); display: block; margin-bottom: 2mm;
+}
+.return-card .rc-val {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 24px; font-weight: 500;
+}
+.return-card .rc-sub { font-size: 8px; color: var(--muted); margin-top: 1mm; }
+
+/* Allocation Bar */
+.alloc-section { margin-bottom: 6mm; }
+.alloc-row { display: flex; align-items: center; gap: 3mm; margin-bottom: 2.5mm; }
+.alloc-name { font-size: 9.5px; width: 32mm; flex-shrink: 0; color: var(--ink); }
+.alloc-bar-wrap { flex: 1; height: 5mm; background: #f0ece4; border-radius: 1px; overflow: hidden; }
+.alloc-bar { height: 100%; background: var(--navy); border-radius: 1px; }
+.alloc-bar.target { background: var(--gold); }
+.alloc-pct { font-size: 9px; width: 10mm; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Page Footer */
+.page-footer {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 10mm; background: var(--navy);
+  display: flex; align-items: center;
+  padding: 0 16mm; justify-content: space-between;
+}
+.page-footer .footer-left {
+  font-size: 7.5px; letter-spacing: 1.5px;
+  color: rgba(255,255,255,.4); text-transform: uppercase;
+}
+.page-footer .page-num {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 12px; color: var(--gold-light);
+}
+</style>
+</head>
+<body>
+
+<!-- ===== APP HEADER ===== -->
+<header class="app-header">
+  <div class="logo-mark">PR</div>
+  <div>
+    <h1>PORTFOLIO REVIEW GENERATOR</h1>
+    <span>Wealth Management · Formal Report Builder</span>
+  </div>
+</header>
+
+<!-- ===== APP BODY ===== -->
+<div class="app-body no-print">
+
+  <!-- Step Tabs -->
+  <div class="step-tabs">
+    <div class="step-tab active" onclick="switchTab(0)">Part A — Overview</div>
+    <div class="step-tab" onclick="switchTab(1)">Part B — Portfolio</div>
+    <div class="step-tab" onclick="switchTab(2)">Part C — Detailed Review</div>
+    <div class="step-tab" onclick="switchTab(3)">Part D — Actionables</div>
+  </div>
+
+  <!-- ===== PART A ===== -->
+  <div class="step-panel active" id="panel-0">
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part A</span>
+        <h2>Client Overview</h2>
+      </div>
+      <div class="field-grid three">
+        <div class="field-group"><label>Client Name</label><input type="text" id="clientName" placeholder="e.g. Mr. Rajesh Sharma"></div>
+        <div class="field-group"><label>Review Date</label><input type="date" id="reviewDate"></div>
+        <div class="field-group"><label>Advisor Name</label><input type="text" id="advisorName" placeholder="Wealth Manager"></div>
+        <div class="field-group"><label>Client ID / Code</label><input type="text" id="clientId" placeholder="WM-0001"></div>
+        <div class="field-group"><label>Review Period</label><input type="text" id="reviewPeriod" placeholder="Q1 FY2025-26"></div>
+        <div class="field-group"><label>Next Review Due</label><input type="date" id="nextReview"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part A</span>
+        <h2>Client Risk Profile</h2>
+      </div>
+      <div class="field-grid">
+        <div class="field-group">
+          <label>Risk Category</label>
+          <select id="riskProfile">
+            <option value="">Select Risk Profile</option>
+            <option>Conservative</option>
+            <option>Moderately Conservative</option>
+            <option>Moderate</option>
+            <option>Moderately Aggressive</option>
+            <option>Aggressive</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Investment Horizon</label>
+          <input type="text" id="horizon" placeholder="e.g. 7–10 years">
+        </div>
+        <div class="field-group full">
+          <label>Client Mandate / Requirement</label>
+          <textarea id="mandate" placeholder="Describe client's primary investment objective, constraints, liquidity needs, etc."></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part A</span>
+        <h2>Minutes of Previous Review</h2>
+      </div>
+      <div id="minutesList" class="dynamic-list"></div>
+      <button class="btn-add" onclick="addMinute()">+ Add Action Point</button>
+    </div>
+  </div>
+
+  <!-- ===== PART B ===== -->
+  <div class="step-panel" id="panel-1">
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part B</span>
+        <h2>Returns Summary</h2>
+      </div>
+      <div class="field-grid three">
+        <div class="field-group"><label>XIRR (%)</label><input type="text" id="xirr" placeholder="e.g. 14.2%"></div>
+        <div class="field-group"><label>Realised Return (%)</label><input type="text" id="realisedReturn" placeholder="e.g. 11.5%"></div>
+        <div class="field-group"><label>Unrealised Return (%)</label><input type="text" id="unrealisedReturn" placeholder="e.g. 18.7%"></div>
+        <div class="field-group"><label>Portfolio Value (₹)</label><input type="text" id="portfolioValue" placeholder="e.g. ₹2,45,00,000"></div>
+        <div class="field-group"><label>Total Invested (₹)</label><input type="text" id="totalInvested" placeholder="e.g. ₹1,80,00,000"></div>
+        <div class="field-group"><label>Est. Run Rate (3Yr CAGR)</label><input type="text" id="runRate" placeholder="e.g. 13.8%"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part B</span>
+        <h2>Asset Allocation</h2>
+      </div>
+      <div class="field-grid" style="margin-bottom:16px">
+        <div class="field-group">
+          <label>Allocation Table Label</label>
+          <input type="text" id="allocLabel" value="Current vs Target Asset Allocation">
+        </div>
+      </div>
+      <div id="allocList" class="dynamic-list"></div>
+      <button class="btn-add" onclick="addAlloc()">+ Add Asset Class</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part B</span>
+        <h2>Assets Held — Performance Summary</h2>
+      </div>
+      <div id="assetList" class="dynamic-list"></div>
+      <button class="btn-add" onclick="addAsset()">+ Add Fund / Asset</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part B</span>
+        <h2>AMC & Category Distribution Notes</h2>
+      </div>
+      <div class="field-group">
+        <label>Overlap / Concentration Notes</label>
+        <textarea id="overlapNotes" rows="4" placeholder="Note any overlap in mutual funds, AMC concentration, category concentration, etc."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PART C ===== -->
+  <div class="step-panel" id="panel-2">
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part C</span>
+        <h2>Fund-wise Comments & Analysis</h2>
+      </div>
+      <div id="fundList" class="dynamic-list"></div>
+      <button class="btn-add" onclick="addFund()">+ Add Fund / Holding</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part C</span>
+        <h2>Capital Gains Review</h2>
+      </div>
+      <div class="field-grid three">
+        <div class="field-group"><label>STCG — Equity (₹)</label><input type="text" id="stcgEq" placeholder="e.g. ₹1,20,000"></div>
+        <div class="field-group"><label>LTCG — Equity (₹)</label><input type="text" id="ltcgEq" placeholder="e.g. ₹3,45,000"></div>
+        <div class="field-group"><label>STCG — Debt (₹)</label><input type="text" id="stcgDebt" placeholder="e.g. ₹40,000"></div>
+        <div class="field-group"><label>LTCG — Debt (₹)</label><input type="text" id="ltcgDebt" placeholder="e.g. ₹80,000"></div>
+        <div class="field-group"><label>Tax Harvesting Opportunity</label><input type="text" id="taxHarvest" placeholder="e.g. ₹50,000 LTCG available"></div>
+        <div class="field-group"><label>Financial Year</label><input type="text" id="capGainFY" placeholder="e.g. FY 2025-26"></div>
+      </div>
+      <div class="field-group" style="margin-top:12px">
+        <label>Capital Gain Remarks</label>
+        <textarea id="capGainRemarks" placeholder="Additional notes on capital gains, tax implications, harvesting strategy..."></textarea>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PART D ===== -->
+  <div class="step-panel" id="panel-3">
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part D</span>
+        <h2>Actionables — Changes to be Made</h2>
+      </div>
+      <div id="actionList" class="dynamic-list"></div>
+      <button class="btn-add" onclick="addAction()">+ Add Action</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part D</span>
+        <h2>Additional Investment Plan</h2>
+      </div>
+      <div class="field-group">
+        <label>Investment Plan Details</label>
+        <textarea id="investPlan" rows="4" placeholder="New SIP amounts, lump sum deployment plan, funds earmarked for fresh allocation..."></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="part-badge">Part D</span>
+        <h2>Corpus Simulation</h2>
+      </div>
+      <div id="simList" class="dynamic-list"></div>
+      <button class="btn-add" onclick="addSim()">+ Add Simulation Scenario</button>
+    </div>
+
+    <div class="generate-bar">
+      <p>All data entered? Generate your elegant PDF report.</p>
+      <button class="btn-generate" onclick="generatePDF()">⬇ Generate PDF</button>
+    </div>
+  </div>
+
+</div><!-- end app-body -->
+
+
+<!-- ===== PDF DOCUMENT ===== -->
+<div class="pdf-document" id="pdfDoc">
+
+  <!-- PAGE 1: COVER -->
+  <div class="pdf-page cover-page" id="coverPage">
+    <div class="cover-top-bar"></div>
+    <div class="cover-body">
+      <div class="cover-watermark">₹</div>
+      <div class="cover-eyebrow">Confidential · Wealth Management</div>
+      <div class="cover-title">Portfolio<br><em>Review</em></div>
+      <div class="cover-divider"></div>
+      <div class="cover-client" id="pdf-clientName">Client Name</div>
+      <div class="cover-meta">
+        <div class="cover-meta-item">
+          <span class="cover-meta-label">Review Date</span>
+          <span class="cover-meta-value" id="pdf-reviewDate">—</span>
+        </div>
+        <div class="cover-meta-item">
+          <span class="cover-meta-label">Period</span>
+          <span class="cover-meta-value" id="pdf-reviewPeriod">—</span>
+        </div>
+        <div class="cover-meta-item">
+          <span class="cover-meta-label">Advisor</span>
+          <span class="cover-meta-value" id="pdf-advisorName">—</span>
+        </div>
+      </div>
+    </div>
+    <div class="cover-bottom-bar">
+      <div class="firm-name">Confidential — For Client Use Only</div>
+    </div>
+  </div>
+
+  <!-- PAGE 2: PART A -->
+  <div class="pdf-page inner-page" id="pagePartA">
+    <div class="page-header">
+      <div class="part-label">Part A — Overview</div>
+      <div class="page-title">Client Profile & Risk Mandate</div>
+      <div class="client-mini" id="pdf-clientMini">Client</div>
+    </div>
+    <div class="gold-rule"></div>
+    <div class="page-content">
+      <div class="section-label">Client Details</div>
+      <div class="info-grid" id="pdf-clientDetails"></div>
+
+      <div class="section-label">Risk Profile & Mandate</div>
+      <div class="comment-block">
+        <div class="cb-label">Risk Category</div>
+        <p id="pdf-riskProfile">—</p>
+      </div>
+      <div class="comment-block">
+        <div class="cb-label">Investment Horizon</div>
+        <p id="pdf-horizon">—</p>
+      </div>
+      <div class="comment-block">
+        <div class="cb-label">Client Mandate / Requirement</div>
+        <p id="pdf-mandate">—</p>
+      </div>
+
+      <div class="section-label" style="margin-top:6mm">Previous Review — Action Status</div>
+      <table class="pdf-table" id="pdf-minutesTable">
+        <thead><tr>
+          <th style="width:55%">Action Point</th>
+          <th>Status</th>
+          <th>Remarks</th>
+        </tr></thead>
+        <tbody id="pdf-minutesTbody"></tbody>
+      </table>
+    </div>
+    <div class="page-footer">
+      <span class="footer-left" id="pdf-footerClient2">Portfolio Review</span>
+      <span class="page-num">02</span>
+    </div>
+  </div>
+
+  <!-- PAGE 3: PART B -->
+  <div class="pdf-page inner-page" id="pagePartB">
+    <div class="page-header">
+      <div class="part-label">Part B — Investment Portfolio</div>
+      <div class="page-title">Returns & Asset Allocation</div>
+      <div class="client-mini" id="pdf-clientMini3">Client</div>
+    </div>
+    <div class="gold-rule"></div>
+    <div class="page-content">
+      <div class="section-label">Portfolio Returns Summary</div>
+      <div class="return-cards" id="pdf-returnCards"></div>
+
+      <div class="section-label">Asset Allocation — Current vs Target</div>
+      <div class="alloc-section" id="pdf-allocBars"></div>
+
+      <div class="section-label">Assets Held — Performance Summary</div>
+      <table class="pdf-table" id="pdf-assetTable">
+        <thead><tr>
+          <th>Fund / Asset</th><th>Category</th>
+          <th class="num">1Y Return</th><th class="num">3Y CAGR</th>
+          <th class="num">Allocation (%)</th><th>Rating</th>
+        </tr></thead>
+        <tbody id="pdf-assetTbody"></tbody>
+      </table>
+
+      <div class="section-label">AMC & Overlap Notes</div>
+      <div class="comment-block">
+        <p id="pdf-overlapNotes">—</p>
+      </div>
+    </div>
+    <div class="page-footer">
+      <span class="footer-left" id="pdf-footerClient3">Portfolio Review</span>
+      <span class="page-num">03</span>
+    </div>
+  </div>
+
+  <!-- PAGE 4: PART C -->
+  <div class="pdf-page inner-page" id="pagePartC">
+    <div class="page-header">
+      <div class="part-label">Part C — Detailed Portfolio Review</div>
+      <div class="page-title">Fund Analysis & Capital Gains</div>
+      <div class="client-mini" id="pdf-clientMini4">Client</div>
+    </div>
+    <div class="gold-rule"></div>
+    <div class="page-content">
+      <div class="section-label">Fund-wise Comments & Analysis</div>
+      <div id="pdf-fundComments"></div>
+
+      <div class="section-label" style="margin-top:5mm">Capital Gains Review</div>
+      <table class="pdf-table" id="pdf-capGainTable">
+        <thead><tr>
+          <th>Type</th><th>Category</th>
+          <th class="num">Amount (₹)</th><th>Notes</th>
+        </tr></thead>
+        <tbody id="pdf-capGainTbody"></tbody>
+      </table>
+      <div class="comment-block" id="pdf-capGainRemarks" style="display:none">
+        <div class="cb-label">Capital Gain Remarks</div>
+        <p id="pdf-capGainRemarksText">—</p>
+      </div>
+    </div>
+    <div class="page-footer">
+      <span class="footer-left" id="pdf-footerClient4">Portfolio Review</span>
+      <span class="page-num">04</span>
+    </div>
+  </div>
+
+  <!-- PAGE 5: PART D -->
+  <div class="pdf-page inner-page" id="pagePartD">
+    <div class="page-header">
+      <div class="part-label">Part D — Actionables</div>
+      <div class="page-title">Recommendations & Corpus Simulation</div>
+      <div class="client-mini" id="pdf-clientMini5">Client</div>
+    </div>
+    <div class="gold-rule"></div>
+    <div class="page-content">
+      <div class="section-label">Changes to be Made</div>
+      <table class="pdf-table">
+        <thead><tr>
+          <th>Action / Fund</th><th>Type</th>
+          <th class="num">Amount (₹)</th><th>Tax Impact</th>
+        </tr></thead>
+        <tbody id="pdf-actionTbody"></tbody>
+      </table>
+
+      <div class="section-label" style="margin-top:5mm">Additional Investment Plan</div>
+      <div class="comment-block">
+        <p id="pdf-investPlan">—</p>
+      </div>
+
+      <div class="section-label" style="margin-top:5mm">Corpus Simulation Scenarios</div>
+      <div id="pdf-simBoxes"></div>
+    </div>
+    <div class="page-footer">
+      <span class="footer-left" id="pdf-footerClient5">Portfolio Review</span>
+      <span class="page-num">05</span>
+    </div>
+  </div>
+
+</div><!-- end pdf-document -->
+
+<script>
+// ============================================================
+//  DATA STORE
+// ============================================================
+let minutes = [], assets = [], allocs = [], funds = [], actions = [], sims = [];
+
+// ============================================================
+//  TAB SWITCH
+// ============================================================
+function switchTab(i) {
+  document.querySelectorAll('.step-tab').forEach((t,j) => t.classList.toggle('active', i===j));
+  document.querySelectorAll('.step-panel').forEach((p,j) => p.classList.toggle('active', i===j));
+}
+
+// ============================================================
+//  DYNAMIC ROW BUILDERS
+// ============================================================
+function addMinute() {
+  const id = Date.now();
+  minutes.push(id);
+  const row = document.createElement('div');
+  row.className = 'dynamic-row'; row.id = 'min-'+id;
+  row.style.gridTemplateColumns = '2fr 1fr 1fr 32px';
+  row.innerHTML = `
+    <div class="field-group"><label>Action Point</label><input type="text" id="min-point-${id}" placeholder="e.g. Rebalance equity to 60%"></div>
+    <div class="field-group"><label>Status</label>
+      <div class="status-row">
+        <span class="status-dot green" onclick="setStatus(${id},'green')" title="Green"></span>
+        <span class="status-dot yellow" onclick="setStatus(${id},'yellow')" title="Yellow"></span>
+        <span class="status-dot red" onclick="setStatus(${id},'red')" title="Red"></span>
+        <span class="status-label" id="min-status-lbl-${id}">Not set</span>
+        <input type="hidden" id="min-status-${id}" value="">
+      </div>
+    </div>
+    <div class="field-group"><label>Remarks</label><input type="text" id="min-remarks-${id}" placeholder="Completed / Pending..."></div>
+    <button class="btn-remove" onclick="removeRow('min-${id}', minutes, ${id})">×</button>
+  `;
+  document.getElementById('minutesList').appendChild(row);
+}
+
+function setStatus(id, color) {
+  document.getElementById('min-status-'+id).value = color;
+  document.getElementById('min-status-lbl-'+id).textContent = color.charAt(0).toUpperCase()+color.slice(1);
+  ['green','yellow','red'].forEach(c => {
+    document.querySelectorAll(`#min-${id} .status-dot.${c}`).forEach(d => d.classList.toggle('selected', c===color));
+  });
+}
+
+function addAlloc() {
+  const id = Date.now();
+  allocs.push(id);
+  const row = document.createElement('div');
+  row.className = 'dynamic-row'; row.id = 'alloc-'+id;
+  row.style.gridTemplateColumns = '2fr 1fr 1fr 32px';
+  row.innerHTML = `
+    <div class="field-group"><label>Asset Class</label><input type="text" id="alloc-name-${id}" placeholder="e.g. Large Cap Equity"></div>
+    <div class="field-group"><label>Current (%)</label><input type="text" id="alloc-cur-${id}" placeholder="40"></div>
+    <div class="field-group"><label>Target (%)</label><input type="text" id="alloc-tgt-${id}" placeholder="45"></div>
+    <button class="btn-remove" onclick="removeRow('alloc-${id}', allocs, ${id})">×</button>
+  `;
+  document.getElementById('allocList').appendChild(row);
+}
+
+function addAsset() {
+  const id = Date.now();
+  assets.push(id);
+  const row = document.createElement('div');
+  row.className = 'dynamic-row asset-row'; row.id = 'asset-'+id;
+  row.innerHTML = `
+    <div class="field-group"><label>Fund / Asset Name</label><input type="text" id="asset-name-${id}" placeholder="e.g. Mirae Asset Large Cap Fund - Direct"></div>
+    <div class="field-group"><label>Category</label><input type="text" id="asset-cat-${id}" placeholder="e.g. Large Cap MF"></div>
+    <div class="field-group"><label>1Y Return</label><input type="text" id="asset-1y-${id}" placeholder="18.2%"></div>
+    <div class="field-group"><label>3Y CAGR</label><input type="text" id="asset-3y-${id}" placeholder="14.5%"></div>
+    <div class="field-group"><label>Allocation %</label><input type="text" id="asset-alloc-${id}" placeholder="15%"></div>
+    <button class="btn-remove" onclick="removeRow('asset-${id}', assets, ${id})">×</button>
+  `;
+  document.getElementById('assetList').appendChild(row);
+}
+
+function addFund() {
+  const id = Date.now();
+  funds.push(id);
+  const row = document.createElement('div');
+  row.className = 'dynamic-row fund-row'; row.id = 'fund-'+id;
+  row.innerHTML = `
+    <div class="field-group"><label>Fund Name</label><input type="text" id="fund-name-${id}" placeholder="Fund name"></div>
+    <div class="field-group"><label>Value (₹)</label><input type="text" id="fund-val-${id}" placeholder="₹25,00,000"></div>
+    <div class="field-group"><label>XIRR / Return</label><input type="text" id="fund-xirr-${id}" placeholder="16.4%"></div>
+    <div class="field-group"><label>Recommendation</label>
+      <select id="fund-rec-${id}">
+        <option value="Hold">Hold</option><option value="Buy">Buy / Add</option>
+        <option value="Sell">Sell / Redeem</option><option value="Switch">Switch</option>
+        <option value="Review">Under Review</option>
+      </select>
+    </div>
+    <div class="field-group"><label>Analyst Comment</label><input type="text" id="fund-comment-${id}" placeholder="Brief comment on fund..."></div>
+    <button class="btn-remove" onclick="removeRow('fund-${id}', funds, ${id})">×</button>
+  `;
+  document.getElementById('fundList').appendChild(row);
+}
+
+function addAction() {
+  const id = Date.now();
+  actions.push(id);
+  const row = document.createElement('div');
+  row.className = 'dynamic-row action-row'; row.id = 'action-'+id;
+  row.innerHTML = `
+    <div class="field-group"><label>Action / Fund</label><input type="text" id="action-name-${id}" placeholder="e.g. Redeem DSP Mid Cap Fund"></div>
+    <div class="field-group"><label>Type</label>
+      <select id="action-type-${id}">
+        <option>Buy</option><option>Sell</option><option>Switch</option>
+        <option>SIP Start</option><option>SIP Stop</option><option>Rebalance</option>
+      </select>
+    </div>
+    <div class="field-group"><label>Amount (₹)</label><input type="text" id="action-amt-${id}" placeholder="₹5,00,000"></div>
+    <button class="btn-remove" onclick="removeRow('action-${id}', actions, ${id})">×</button>
+  `;
+  document.getElementById('actionList').appendChild(row);
+}
+
+function addSim() {
+  const id = Date.now();
+  sims.push(id);
+  const row = document.createElement('div');
+  row.className = 'dynamic-row sim-row'; row.id = 'sim-'+id;
+  row.innerHTML = `
+    <div class="field-group"><label>Scenario Name</label><input type="text" id="sim-name-${id}" placeholder="e.g. Conservative"></div>
+    <div class="field-group"><label>Current Corpus (₹)</label><input type="text" id="sim-corpus-${id}" placeholder="₹2,00,00,000"></div>
+    <div class="field-group"><label>Assumed Return (%)</label><input type="text" id="sim-rate-${id}" placeholder="10%"></div>
+    <div class="field-group"><label>Target Corpus (₹)</label><input type="text" id="sim-target-${id}" placeholder="₹5,00,00,000"></div>
+    <button class="btn-remove" onclick="removeRow('sim-${id}', sims, ${id})">×</button>
+  `;
+  document.getElementById('simList').appendChild(row);
+}
+
+function removeRow(domId, arr, id) {
+  const el = document.getElementById(domId);
+  if (el) el.remove();
+  const i = arr.indexOf(id);
+  if (i > -1) arr.splice(i, 1);
+}
+
+// ============================================================
+//  GENERATE PDF
+// ============================================================
+function generatePDF() {
+  const clientName = v('clientName') || 'Client';
+  const reviewDate = fmtDate(v('reviewDate'));
+  const reviewPeriod = v('reviewPeriod') || '—';
+  const advisorName = v('advisorName') || '—';
+  const clientId = v('clientId') || '—';
+  const horizon = v('horizon') || '—';
+  const riskProfile = v('riskProfile') || '—';
+  const mandate = v('mandate') || '—';
+  const nextReview = fmtDate(v('nextReview'));
+  const miniLabel = clientName + ' · ' + reviewPeriod;
+
+  // Cover
+  setText('pdf-clientName', clientName);
+  setText('pdf-reviewDate', reviewDate);
+  setText('pdf-reviewPeriod', reviewPeriod);
+  setText('pdf-advisorName', advisorName);
+
+  // Part A
+  ['pdf-clientMini','pdf-clientMini3','pdf-clientMini4','pdf-clientMini5'].forEach(id => setText(id, miniLabel));
+  ['pdf-footerClient2','pdf-footerClient3','pdf-footerClient4','pdf-footerClient5'].forEach(id => setText(id, 'Portfolio Review · ' + clientName));
+
+  // Client details grid
+  document.getElementById('pdf-clientDetails').innerHTML = [
+    ['Client Name', clientName], ['Client ID', clientId], ['Risk Profile', riskProfile],
+    ['Review Date', reviewDate], ['Review Period', reviewPeriod], ['Next Review', nextReview],
+    ['Advisor', advisorName], ['Investment Horizon', horizon]
+  ].map(([l,val]) => `<div class="info-cell"><span class="lbl">${l}</span><span class="val">${val||'—'}</span></div>`).join('');
+
+  setText('pdf-riskProfile', riskProfile);
+  setText('pdf-horizon', horizon);
+  setText('pdf-mandate', mandate);
+
+  // Minutes
+  document.getElementById('pdf-minutesTbody').innerHTML = minutes.map(id => {
+    const point = v('min-point-'+id) || '—';
+    const status = v('min-status-'+id) || '';
+    const remarks = v('min-remarks-'+id) || '—';
+    const badge = status ? `<span class="status-badge ${status}">${status}</span>` : '—';
+    return `<tr><td>${point}</td><td>${badge}</td><td>${remarks}</td></tr>`;
+  }).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic">No previous minutes recorded.</td></tr>';
+
+  // Returns
+  document.getElementById('pdf-returnCards').innerHTML = [
+    ['XIRR', v('xirr')||'—', 'Portfolio IRR'], ['Realised Return', v('realisedReturn')||'—', 'Booked'],
+    ['Unrealised Return', v('unrealisedReturn')||'—', 'Mark to Market'],
+    ['Portfolio Value', v('portfolioValue')||'—', 'Current'], ['Total Invested', v('totalInvested')||'—', 'Cost'],
+    ['Est. Run Rate', v('runRate')||'—', '3-Year CAGR Basis']
+  ].map(([l,val,sub]) => `<div class="return-card"><span class="rc-lbl">${l}</span><span class="rc-val">${val}</span><div class="rc-sub">${sub}</div></div>`).join('');
+
+  // Alloc bars
+  document.getElementById('pdf-allocBars').innerHTML = allocs.length
+    ? allocs.map(id => {
+        const name = v('alloc-name-'+id)||'—';
+        const cur = parseFloat(v('alloc-cur-'+id))||0;
+        const tgt = parseFloat(v('alloc-tgt-'+id))||0;
+        return `
+          <div class="alloc-row">
+            <div class="alloc-name">${name}</div>
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:3mm;margin-bottom:1.5mm">
+                <div class="alloc-bar-wrap" style="height:4mm"><div class="alloc-bar" style="width:${Math.min(cur,100)}%"></div></div>
+                <span class="alloc-pct">${cur}%</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:3mm">
+                <div class="alloc-bar-wrap" style="height:4mm"><div class="alloc-bar target" style="width:${Math.min(tgt,100)}%"></div></div>
+                <span class="alloc-pct" style="color:var(--gold)">${tgt}%</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('') + `<div style="display:flex;gap:8mm;font-size:8px;color:var(--muted);margin-top:2mm">
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:8px;background:var(--navy);border-radius:1px;display:inline-block"></span> Current</span>
+        <span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:8px;background:var(--gold);border-radius:1px;display:inline-block"></span> Target</span>
+      </div>`
+    : '<p style="color:#aaa;font-style:italic;font-size:10px">No allocation data entered.</p>';
+
+  // Assets table
+  document.getElementById('pdf-assetTbody').innerHTML = assets.map(id => `
+    <tr>
+      <td>${v('asset-name-'+id)||'—'}</td>
+      <td>${v('asset-cat-'+id)||'—'}</td>
+      <td class="num">${v('asset-1y-'+id)||'—'}</td>
+      <td class="num">${v('asset-3y-'+id)||'—'}</td>
+      <td class="num">${v('asset-alloc-'+id)||'—'}</td>
+      <td>—</td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:#aaa;font-style:italic">No assets entered.</td></tr>';
+
+  setText('pdf-overlapNotes', v('overlapNotes')||'No concentration or overlap issues noted.');
+
+  // Fund Comments
+  const tagMap = {Buy:'tag-buy',Sell:'tag-sell','Buy / Add':'tag-buy','Sell / Redeem':'tag-sell',
+    Hold:'tag-hold',Switch:'tag-switch','Under Review':'tag-review'};
+  document.getElementById('pdf-fundComments').innerHTML = funds.map(id => {
+    const rec = v('fund-rec-'+id)||'Hold';
+    const cls = tagMap[rec]||'tag-hold';
+    return `
+      <div class="comment-block" style="margin-bottom:3mm">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2mm">
+          <div class="cb-label">${v('fund-name-'+id)||'—'}</div>
+          <div style="display:flex;gap:8mm;font-size:8.5px;color:var(--muted)">
+            <span>Value: <strong style="color:var(--ink)">${v('fund-val-'+id)||'—'}</strong></span>
+            <span>XIRR: <strong style="color:var(--ink)">${v('fund-xirr-'+id)||'—'}</strong></span>
+            <span class="tag ${cls}">${rec}</span>
+          </div>
+        </div>
+        <p>${v('fund-comment-'+id)||'—'}</p>
+      </div>`;
+  }).join('') || '<p style="color:#aaa;font-style:italic;font-size:10px">No fund analysis entered.</p>';
+
+  // Cap Gains
+  const cgRows = [
+    ['Short Term Capital Gain','Equity', v('stcgEq'), '15% flat tax'],
+    ['Long Term Capital Gain','Equity', v('ltcgEq'), '10% above ₹1L'],
+    ['Short Term Capital Gain','Debt', v('stcgDebt'), 'As per slab'],
+    ['Long Term Capital Gain','Debt', v('ltcgDebt'), '20% with indexation'],
+  ];
+  document.getElementById('pdf-capGainTbody').innerHTML = cgRows
+    .filter(r=>r[2]).map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="num">${r[2]}</td><td>${r[3]}</td></tr>`).join('')
+    || '<tr><td colspan="4" style="color:#aaa;font-style:italic">No capital gain data entered.</td></tr>';
+
+  const cgR = v('capGainRemarks');
+  if (cgR) {
+    document.getElementById('pdf-capGainRemarks').style.display='block';
+    setText('pdf-capGainRemarksText', cgR);
+  }
+
+  // Actions
+  document.getElementById('pdf-actionTbody').innerHTML = actions.map(id => `
+    <tr>
+      <td>${v('action-name-'+id)||'—'}</td>
+      <td><span class="tag ${tagMap[v('action-type-'+id)]||'tag-hold'}">${v('action-type-'+id)||'—'}</span></td>
+      <td class="num">${v('action-amt-'+id)||'—'}</td>
+      <td>—</td>
+    </tr>`).join('') || '<tr><td colspan="4" style="color:#aaa;font-style:italic">No actions specified.</td></tr>';
+
+  setText('pdf-investPlan', v('investPlan')||'No additional investment plan specified.');
+
+  // Simulations
+  document.getElementById('pdf-simBoxes').innerHTML = sims.map(id => `
+    <div class="sim-box">
+      <div class="sim-title">${v('sim-name-'+id)||'Scenario'}</div>
+      <div class="sim-grid">
+        <div class="sim-cell"><span class="sim-lbl">Current Corpus</span><span class="sim-val">${v('sim-corpus-'+id)||'—'}</span></div>
+        <div class="sim-cell"><span class="sim-lbl">Return Assumption</span><span class="sim-val">${v('sim-rate-'+id)||'—'}</span></div>
+        <div class="sim-cell"><span class="sim-lbl">Target Corpus</span><span class="sim-val">${v('sim-target-'+id)||'—'}</span></div>
+      </div>
+    </div>`).join('') || '<p style="color:#aaa;font-style:italic;font-size:10px">No simulation scenarios entered.</p>';
+
+  // Print
+  document.getElementById('pdfDoc').style.display = 'block';
+  setTimeout(() => { window.print(); }, 400);
+}
+
+// ============================================================
+//  HELPERS
+// ============================================================
+function v(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function setText(id, text) { const el = document.getElementById(id); if(el) el.textContent = text; }
+function fmtDate(d) {
+  if (!d) return '—';
+  try { return new Date(d).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}); }
+  catch(e) { return d; }
+}
+
+// Init with one row each
+window.addEventListener('DOMContentLoaded', () => {
+  addMinute(); addAlloc(); addAsset(); addFund(); addAction(); addSim();
+  document.getElementById('reviewDate').valueAsDate = new Date();
+});
+</script>
+</body>
+</html>
