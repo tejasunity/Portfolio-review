@@ -3,1122 +3,1275 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Portfolio Review Generator</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+<title>Pranitya Portfolio Review</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- PDF engine: html2canvas renders the on-screen PDF layout to a canvas, jsPDF assembles the canvas into
+     a paginated PDF. This guarantees identical colours on every device (phone, laptop, any browser),
+     unlike window.print() which is at the mercy of OS/browser print-colour and dark-mode settings. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
-/* ===================== SCREEN UI ===================== */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
+/* ======================================================================
+   DESIGN TOKENS
+   Palette: pastel green + white + black, thin gold hairlines.
+   Type: Lato throughout (closest formal, uniform Google-hosted match to
+   Calibri/Aptos — both are licensed system fonts not available on the web).
+   ====================================================================== */
 :root {
-  --navy: #0d1b2a;
-  --navy-mid: #1a2e45;
-  --gold: #b8972a;
-  --gold-light: #d4af5a;
-  --gold-pale: #f0e6c8;
-  --cream: #faf8f4;
-  --ink: #1c1c1c;
-  --muted: #6b7280;
-  --border: #ddd5c0;
+  --green-pale:  #eef3ea;   /* page background wash */
+  --green-soft:  #cfe0c4;   /* card / section fill */
+  --green-mid:   #93b182;   /* accents, active states */
+  --green-deep:  #4f6b45;   /* headings on light, strong accents */
+  --white:       #ffffff;
+  --black:       #1b1d1a;
+  --ink-soft:    #4a4d47;
+  --muted:       #7d8277;
+  --gold:        #b9952f;
+  --gold-soft:   #e4d6a4;
+  --border:      #d8dfd0;
+  --danger:      #b3503f;
+  --radius:      6px;
+  --shadow:      0 2px 14px rgba(27,29,26,0.06);
+  --font: 'Lato', 'Calibri', 'Aptos', 'Segoe UI', sans-serif;
 }
 
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; color-adjust: exact; }
+
+html, body { height: 100%; }
 body {
-  font-family: 'Montserrat', sans-serif;
-  background: #f0ece4;
-  color: var(--ink);
+  font-family: var(--font);
+  background: var(--green-pale);
+  color: var(--black);
   min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.5;
 }
+
+button { font-family: var(--font); cursor: pointer; }
+input, select, textarea { font-family: var(--font); font-size: 14px; }
 
 /* ---- App Shell ---- */
 .app-header {
-  background: var(--navy);
-  padding: 18px 40px;
+  background: var(--white);
+  padding: 16px 32px;
   display: flex;
   align-items: center;
-  gap: 16px;
-  border-bottom: 3px solid var(--gold);
+  gap: 14px;
+  border-bottom: 2px solid var(--gold);
+  position: sticky; top: 0; z-index: 50;
 }
 .app-header .logo-mark {
-  width: 38px; height: 38px;
-  border: 2px solid var(--gold);
+  width: 36px; height: 36px;
+  border: 1.5px solid var(--gold);
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 18px; color: var(--gold); font-weight: 600;
+  font-size: 14px; color: var(--gold); font-weight: 700; letter-spacing: 0.5px;
+  background: var(--green-pale);
 }
+.app-header .titles { display: flex; flex-direction: column; }
 .app-header h1 {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 22px; font-weight: 500; color: #fff; letter-spacing: 2px;
+  font-size: 18px; font-weight: 700; color: var(--black); letter-spacing: 0.5px;
 }
-.app-header span {
-  font-size: 11px; color: var(--gold-light); letter-spacing: 3px;
-  text-transform: uppercase; margin-top: 2px; display: block;
+.app-header span.tag {
+  font-size: 10px; color: var(--green-deep); letter-spacing: 2.5px;
+  text-transform: uppercase; font-weight: 600;
 }
+.app-header .back-btn {
+  margin-left: auto;
+  background: var(--green-pale);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-size: 13px; font-weight: 600; color: var(--green-deep);
+  display: none;
+  align-items: center; gap: 6px;
+}
+.app-header .back-btn.show { display: flex; }
+.app-header .back-btn:hover { background: var(--green-soft); }
 
-.app-body {
-  max-width: 960px; margin: 0 auto; padding: 40px 24px;
-}
+.app-body { max-width: 1080px; margin: 0 auto; padding: 36px 24px 80px; }
 
-/* ---- Steps ---- */
-.step-tabs {
-  display: flex; gap: 0; margin-bottom: 32px;
-  border-bottom: 2px solid var(--border);
-}
-.step-tab {
-  padding: 10px 22px; font-size: 11px; letter-spacing: 2px;
-  text-transform: uppercase; cursor: pointer; color: var(--muted);
-  border-bottom: 3px solid transparent; margin-bottom: -2px;
-  font-weight: 500; transition: all .2s;
-}
-.step-tab.active { color: var(--navy); border-color: var(--gold); }
-.step-tab:hover:not(.active) { color: var(--navy-mid); }
+.screen { display: none; }
+.screen.active { display: block; animation: fadeIn .25s ease; }
+@keyframes fadeIn { from {opacity:0; transform: translateY(6px);} to {opacity:1; transform: translateY(0);} }
 
-.step-panel { display: none; }
-.step-panel.active { display: block; }
+/* ---- Landing cards ---- */
+.landing-intro { text-align: center; margin-bottom: 40px; }
+.landing-intro h2 { font-size: 26px; font-weight: 700; color: var(--green-deep); margin-bottom: 8px; }
+.landing-intro p { color: var(--muted); font-size: 14px; }
 
-/* ---- Cards ---- */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+@media (max-width: 760px) { .card-grid { grid-template-columns: 1fr; } }
+
+.big-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 30px 24px;
+  text-align: left;
+  box-shadow: var(--shadow);
+  transition: transform .15s ease, box-shadow .15s ease;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.big-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(27,29,26,0.10); }
+.big-card .num { font-size: 12px; font-weight: 700; color: var(--gold); letter-spacing: 2px; }
+.big-card h3 { font-size: 19px; font-weight: 700; color: var(--black); }
+.big-card p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+.big-card .go { margin-top: auto; font-size: 13px; font-weight: 600; color: var(--green-deep); display: flex; align-items: center; gap: 6px; }
+
+/* ---- Generic card / section ---- */
 .card {
-  background: #fff; border: 1px solid var(--border);
-  border-radius: 3px; padding: 28px 32px; margin-bottom: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow);
 }
 .card-header {
-  display: flex; align-items: center; gap: 12px; margin-bottom: 22px;
-  padding-bottom: 14px; border-bottom: 1px solid var(--gold-pale);
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border);
 }
-.part-badge {
-  background: var(--navy); color: var(--gold-light);
-  font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
-  padding: 4px 10px; border-radius: 2px; font-weight: 600; white-space: nowrap;
-}
-.card-header h2 {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 20px; font-weight: 500; color: var(--navy);
-}
+.card-header h3 { font-size: 15px; font-weight: 700; color: var(--green-deep); letter-spacing: 0.3px; }
+.card-header .hint { font-size: 11.5px; color: var(--muted); }
 
-/* ---- Form Elements ---- */
-.field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.field-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+.field-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 700px) { .field-grid { grid-template-columns: 1fr; } }
 .field-group { display: flex; flex-direction: column; gap: 5px; }
-.field-group.full { grid-column: 1 / -1; }
-label {
-  font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
-  color: var(--muted); font-weight: 600;
+.field-group label { font-size: 11.5px; font-weight: 600; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.4px; }
+.field-group input, .field-group select, .field-group textarea {
+  border: 1px solid var(--border); border-radius: 4px; padding: 9px 10px;
+  background: var(--green-pale); color: var(--black);
 }
-input[type=text], input[type=date], select, textarea {
-  border: 1px solid var(--border); border-radius: 2px;
-  padding: 9px 12px; font-family: 'Montserrat', sans-serif;
-  font-size: 13px; color: var(--ink); background: var(--cream);
-  transition: border .2s; outline: none;
+.field-group input:focus, .field-group select:focus, .field-group textarea:focus {
+  outline: none; border-color: var(--gold); background: var(--white);
 }
-input:focus, select:focus, textarea:focus {
-  border-color: var(--gold); background: #fff;
-}
-textarea { resize: vertical; min-height: 72px; }
+.field-group textarea { resize: vertical; min-height: 70px; }
 
-.status-row { display: flex; align-items: center; gap: 10px; }
-.status-dot {
-  width: 14px; height: 14px; border-radius: 50%; cursor: pointer;
-  border: 2px solid transparent; transition: transform .15s;
+/* ---- Buttons ---- */
+.btn {
+  border-radius: 4px; padding: 10px 18px; font-size: 13.5px; font-weight: 600;
+  border: 1px solid transparent; display: inline-flex; align-items: center; gap: 7px;
 }
-.status-dot:hover { transform: scale(1.2); }
-.status-dot.green { background: #22c55e; }
-.status-dot.yellow { background: #eab308; }
-.status-dot.red { background: #ef4444; }
-.status-dot.selected { border-color: var(--navy); box-shadow: 0 0 0 2px rgba(0,0,0,.15); }
-.status-label { font-size: 11px; color: var(--muted); }
-
-/* ---- Dynamic Rows ---- */
-.dynamic-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
-.dynamic-row {
-  display: grid; align-items: start; gap: 10px;
-  background: var(--cream); padding: 12px; border-radius: 2px;
-  border: 1px solid var(--border);
-}
-.dynamic-row.asset-row { grid-template-columns: 2fr 1fr 1fr 1fr 1.5fr 32px; }
-.dynamic-row.fund-row  { grid-template-columns: 2fr 1fr 1fr 1fr 1fr 32px; }
-.dynamic-row.action-row { grid-template-columns: 2fr 1fr 1fr 32px; }
-.dynamic-row.sim-row { grid-template-columns: 1fr 1fr 1fr 1fr 32px; }
-.dynamic-row input, .dynamic-row select { background: #fff; }
+.btn-primary { background: var(--green-deep); color: var(--white); }
+.btn-primary:hover { background: #3e5536; }
+.btn-gold { background: var(--gold); color: var(--white); }
+.btn-gold:hover { background: #a1812a; }
+.btn-outline { background: var(--white); color: var(--green-deep); border-color: var(--green-deep); }
+.btn-outline:hover { background: var(--green-pale); }
+.btn-text { background: none; color: var(--green-deep); padding: 6px 4px; font-weight: 600; }
+.btn-text:hover { text-decoration: underline; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
 .btn-remove {
-  width: 28px; height: 28px; border: none; background: #fee2e2;
-  color: #dc2626; border-radius: 2px; cursor: pointer; font-size: 16px;
-  display: flex; align-items: center; justify-content: center; margin-top: 18px;
-  flex-shrink: 0;
+  width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--white); color: var(--danger); font-size: 16px; line-height: 1;
+  align-self: end;
 }
-.btn-remove:hover { background: #fecaca; }
-.btn-add {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 7px 14px; border: 1px dashed var(--gold);
-  background: transparent; color: var(--navy); border-radius: 2px;
-  cursor: pointer; font-size: 11px; letter-spacing: 1px;
-  text-transform: uppercase; font-family: 'Montserrat', sans-serif;
-  font-weight: 600; transition: all .2s;
+.btn-remove:hover { background: #fbeae7; }
+.btn-add-row {
+  background: var(--green-pale); border: 1px dashed var(--green-mid); color: var(--green-deep);
+  border-radius: 4px; padding: 9px 14px; font-size: 13px; font-weight: 600; width: 100%; margin-top: 4px;
 }
-.btn-add:hover { background: var(--gold-pale); }
+.btn-add-row:hover { background: var(--green-soft); }
 
-/* ---- Generate Button ---- */
-.generate-bar {
-  background: var(--navy); border-radius: 3px;
-  padding: 24px 32px; display: flex; align-items: center;
-  justify-content: space-between; margin-top: 32px;
-}
-.generate-bar p { color: var(--gold-pale); font-size: 12px; }
-.btn-generate {
-  background: var(--gold); color: var(--navy);
-  border: none; padding: 12px 32px; border-radius: 2px;
-  font-family: 'Montserrat', sans-serif; font-size: 12px;
-  letter-spacing: 2px; text-transform: uppercase; font-weight: 700;
-  cursor: pointer; transition: background .2s;
-}
-.btn-generate:hover { background: var(--gold-light); }
+.dynamic-list { display: flex; flex-direction: column; gap: 12px; }
+.dynamic-row { display: grid; gap: 12px; align-items: end; }
 
-/* ===================== PRINT / PDF ===================== */
-@media print {
-  @page {
-    size: A4; margin: 0;
-  }
-  body { background: #fff; }
-  .app-header, .app-body, .no-print { display: none !important; }
-  .pdf-document { display: block !important; }
+/* ---- Status messages / toasts ---- */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--black); color: var(--white); padding: 12px 22px; border-radius: 6px;
+  font-size: 13.5px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  z-index: 999; opacity: 0; pointer-events: none; transition: opacity .25s ease, transform .25s ease;
 }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+.toast.error { background: var(--danger); }
 
-.pdf-document { display: none; }
+/* ---- Autocomplete ---- */
+.autocomplete-box {
+  position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px;
+  background: var(--white); border: 1px solid var(--border); border-radius: 4px;
+  box-shadow: var(--shadow); z-index: 30; max-height: 220px; overflow-y: auto;
+}
+.autocomplete-item { padding: 10px 12px; font-size: 13.5px; cursor: pointer; }
+.autocomplete-item:hover { background: var(--green-pale); }
+.autocomplete-empty { padding: 10px 12px; font-size: 13px; color: var(--muted); font-style: italic; }
 
-/* PDF Pages */
+/* ---- Status select badges ---- */
+.status-select { border: 1px solid var(--border); border-radius: 4px; padding: 9px 10px; background: var(--green-pale); }
+.status-select[data-status="Done"] { border-color: var(--green-mid); color: var(--green-deep); font-weight: 600; }
+.status-select[data-status="Pending"] { border-color: var(--danger); color: var(--danger); font-weight: 600; }
+.status-select[data-status="In Process"] { border-color: var(--gold); color: var(--gold); font-weight: 600; }
+
+.mom-list-entry {
+  border: 1px solid var(--border); border-radius: 4px; padding: 14px 16px; margin-bottom: 10px;
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+}
+.mom-list-entry .meta { font-size: 13px; color: var(--muted); }
+.mom-list-entry .date { font-weight: 700; color: var(--black); font-size: 14px; }
+
+/* ============================================================
+   PDF DOCUMENT (rendered off-screen, captured by html2canvas)
+   Colours pinned with hex values only — no CSS variables here, and
+   no dark-mode / print media queries, so output is identical on
+   every device regardless of OS theme.
+============================================================ */
 .pdf-page {
-  width: 210mm; min-height: 297mm;
-  background: #fff;
-  position: relative;
-  page-break-after: always;
-  overflow: hidden;
+  width: 794px; min-height: 1123px; background: #ffffff; color: #1b1d1a;
+  padding: 56px 56px 70px; position: relative; font-family: 'Lato', 'Calibri', sans-serif;
 }
-.pdf-page:last-child { page-break-after: avoid; }
+.pdf-cover { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; height: 1123px; }
+.pdf-cover .brand { font-size: 13px; letter-spacing: 4px; color: #b9952f; font-weight: 700; text-transform: uppercase; margin-bottom: 50px; }
+.pdf-cover .doc-title { font-size: 34px; font-weight: 700; color: #1b1d1a; margin-bottom: 10px; }
+.pdf-cover .for-line { font-size: 14px; color: #7d8277; margin-bottom: 4px; }
+.pdf-cover .client-name { font-size: 24px; font-weight: 700; color: #4f6b45; margin-bottom: 50px; }
+.pdf-cover .meta-row { display: flex; gap: 40px; border-top: 1px solid #b9952f; padding-top: 18px; }
+.pdf-cover .meta-cell { text-align: center; }
+.pdf-cover .meta-cell .lbl { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #7d8277; display:block; margin-bottom: 4px; }
+.pdf-cover .meta-cell .val { font-size: 14px; font-weight: 600; color: #1b1d1a; }
 
-/* Cover Page */
-.cover-page {
-  background: var(--navy);
-  display: flex; flex-direction: column;
-}
-.cover-top-bar {
-  height: 8mm;
-  background: var(--gold);
-}
-.cover-body {
-  flex: 1; display: flex; flex-direction: column;
-  justify-content: center; align-items: center;
-  padding: 20mm 24mm;
-  position: relative;
-}
-.cover-watermark {
-  position: absolute; bottom: 20mm; right: 20mm;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 120px; font-weight: 300;
-  color: rgba(255,255,255,.04); line-height: 1;
-  letter-spacing: -4px; user-select: none;
-}
-.cover-eyebrow {
-  font-size: 9px; letter-spacing: 5px; color: var(--gold-light);
-  text-transform: uppercase; margin-bottom: 6mm; font-weight: 500;
-}
-.cover-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 46px; font-weight: 300; color: #fff;
-  letter-spacing: 4px; text-align: center; line-height: 1.15;
-  margin-bottom: 2mm;
-}
-.cover-title em {
-  font-style: italic; color: var(--gold-light); font-weight: 300;
-}
-.cover-divider {
-  width: 60mm; height: 1px; background: var(--gold);
-  margin: 8mm auto;
-}
-.cover-client {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 28px; color: var(--gold-pale); font-weight: 400;
-  text-align: center; letter-spacing: 1px;
-}
-.cover-meta {
-  margin-top: 14mm; display: flex; gap: 12mm;
-}
-.cover-meta-item { text-align: center; }
-.cover-meta-label {
-  font-size: 8px; letter-spacing: 3px; text-transform: uppercase;
-  color: rgba(255,255,255,.4); display: block; margin-bottom: 3px;
-}
-.cover-meta-value {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 16px; color: var(--gold-light);
-}
-.cover-bottom-bar {
-  height: 16mm; background: rgba(0,0,0,.3);
-  display: flex; align-items: center;
-  padding: 0 16mm; gap: 8mm;
-}
-.cover-bottom-bar .firm-name {
-  font-size: 9px; letter-spacing: 4px; text-transform: uppercase;
-  color: rgba(255,255,255,.5);
-}
-.cover-bottom-bar::before {
-  content: ''; flex: 1; height: 1px;
-  background: rgba(255,255,255,.1);
-}
-
-/* Inner Page Layout */
-.inner-page { padding: 0; }
-.page-header {
-  background: var(--navy); height: 18mm;
-  display: flex; align-items: center; padding: 0 16mm;
-  justify-content: space-between;
-}
-.page-header .part-label {
-  font-size: 8px; letter-spacing: 4px; color: var(--gold-light);
-  text-transform: uppercase;
-}
-.page-header .page-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 18px; color: #fff; letter-spacing: 2px; font-weight: 400;
-}
-.page-header .client-mini {
-  font-size: 8px; color: rgba(255,255,255,.45); letter-spacing: 1px;
-  text-align: right;
-}
-.gold-rule { height: 2px; background: var(--gold); }
-.page-content { padding: 10mm 16mm 14mm; }
-
-/* Section Headings */
-.section-label {
-  font-size: 7.5px; letter-spacing: 3.5px; text-transform: uppercase;
-  color: var(--gold); font-weight: 600; margin-bottom: 3mm;
-  display: flex; align-items: center; gap: 6px;
-}
-.section-label::after {
-  content: ''; flex: 1; height: 1px; background: var(--gold-pale);
-}
-.section-heading {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 17px; color: var(--navy); font-weight: 500;
-  margin-bottom: 5mm; letter-spacing: .5px;
-}
-
-/* Info Grid */
-.info-grid {
-  display: grid; grid-template-columns: 1fr 1fr 1fr;
-  gap: 4mm 8mm; margin-bottom: 7mm;
-}
-.info-cell { border-bottom: 1px solid var(--border); padding-bottom: 3mm; }
-.info-cell .lbl {
-  font-size: 7px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); display: block; margin-bottom: 1.5mm;
-}
-.info-cell .val {
-  font-size: 13px; color: var(--ink); font-weight: 500;
-}
-
-/* Status Badge */
-.status-badge {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 2px 9px; border-radius: 20px; font-size: 9px;
-  font-weight: 600; letter-spacing: 1px; text-transform: uppercase;
-}
-.status-badge.green { background: #dcfce7; color: #15803d; }
-.status-badge.yellow { background: #fef9c3; color: #854d0e; }
-.status-badge.red { background: #fee2e2; color: #b91c1c; }
-.status-badge::before {
-  content: ''; width: 6px; height: 6px; border-radius: 50%;
-  background: currentColor;
-}
-
-/* Tables */
-.pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 6mm; font-size: 10px; }
-.pdf-table thead tr {
-  background: var(--navy); color: #fff;
-}
-.pdf-table thead th {
-  padding: 3.5mm 4mm; text-align: left; font-size: 7.5px;
-  letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600;
-}
-.pdf-table tbody tr:nth-child(even) { background: #f9f7f3; }
-.pdf-table tbody td { padding: 3mm 4mm; color: var(--ink); border-bottom: 1px solid #ede8df; }
-.pdf-table tbody tr:last-child td { border-bottom: none; }
-.pdf-table .num { text-align: right; font-variant-numeric: tabular-nums; }
-.pdf-table .tag {
-  display: inline-block; padding: 1px 6px; border-radius: 2px;
-  font-size: 8px; font-weight: 600; letter-spacing: .5px;
-}
-.tag-buy { background: #dcfce7; color: #15803d; }
-.tag-sell { background: #fee2e2; color: #b91c1c; }
-.tag-hold { background: #fef9c3; color: #854d0e; }
-.tag-switch { background: #ede9fe; color: #6d28d9; }
-.tag-review { background: #e0f2fe; color: #0369a1; }
-
-/* Comments Block */
-.comment-block {
-  background: var(--cream); border-left: 3px solid var(--gold);
-  padding: 4mm 5mm; margin-bottom: 5mm; border-radius: 0 2px 2px 0;
-}
-.comment-block .cb-label {
-  font-size: 7px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); margin-bottom: 2mm; font-weight: 600;
-}
-.comment-block p { font-size: 10.5px; line-height: 1.7; color: #374151; }
-
-/* Simulation Box */
-.sim-box {
-  background: var(--navy); border-radius: 3px;
-  padding: 6mm 8mm; color: #fff; margin-bottom: 5mm;
-}
-.sim-box .sim-title {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 15px; color: var(--gold-light); margin-bottom: 4mm;
-}
-.sim-grid {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm;
-}
-.sim-cell .sim-lbl {
-  font-size: 7px; letter-spacing: 2px; text-transform: uppercase;
-  color: rgba(255,255,255,.45); display: block; margin-bottom: 1.5mm;
-}
-.sim-cell .sim-val {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 20px; color: var(--gold-light);
-}
-
-/* Return Summary Cards */
-.return-cards {
-  display: grid; grid-template-columns: repeat(3,1fr); gap: 4mm; margin-bottom: 6mm;
-}
-.return-card {
-  border: 1px solid var(--border); border-radius: 2px;
-  padding: 4mm; text-align: center;
-}
-.return-card .rc-lbl {
-  font-size: 7.5px; letter-spacing: 2px; text-transform: uppercase;
-  color: var(--muted); display: block; margin-bottom: 2mm;
-}
-.return-card .rc-val {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 24px; font-weight: 500;
-}
-.return-card .rc-sub { font-size: 8px; color: var(--muted); margin-top: 1mm; }
-
-/* Allocation Bar */
-.alloc-section { margin-bottom: 6mm; }
-.alloc-row { display: flex; align-items: center; gap: 3mm; margin-bottom: 2.5mm; }
-.alloc-name { font-size: 9.5px; width: 32mm; flex-shrink: 0; color: var(--ink); }
-.alloc-bar-wrap { flex: 1; height: 5mm; background: #f0ece4; border-radius: 1px; overflow: hidden; }
-.alloc-bar { height: 100%; background: var(--navy); border-radius: 1px; }
-.alloc-bar.target { background: var(--gold); }
-.alloc-pct { font-size: 9px; width: 10mm; text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
-
-/* Page Footer */
-.page-footer {
-  position: absolute; bottom: 0; left: 0; right: 0;
-  height: 10mm; background: var(--navy);
-  display: flex; align-items: center;
-  padding: 0 16mm; justify-content: space-between;
-}
-.page-footer .footer-left {
-  font-size: 7.5px; letter-spacing: 1.5px;
-  color: rgba(255,255,255,.4); text-transform: uppercase;
-}
-.page-footer .page-num {
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 12px; color: var(--gold-light);
-}
+.pdf-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #b9952f; padding-bottom: 10px; margin-bottom: 24px; }
+.pdf-header .h-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #4f6b45; font-weight: 700; }
+.pdf-header .h-client { font-size: 11px; color: #7d8277; }
+.pdf-section-title { font-size: 15px; font-weight: 700; color: #4f6b45; margin: 22px 0 10px; padding-bottom: 6px; border-bottom: 1px solid #cfe0c4; }
+.pdf-section-title:first-child { margin-top: 0; }
+.pdf-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 28px; }
+.pdf-info-cell { display: flex; justify-content: space-between; border-bottom: 1px dotted #d8dfd0; padding-bottom: 5px; font-size: 12.5px; }
+.pdf-info-cell .l { color: #7d8277; }
+.pdf-info-cell .v { font-weight: 600; color: #1b1d1a; }
+.pdf-p { font-size: 12.5px; line-height: 1.6; color: #1b1d1a; white-space: pre-wrap; }
+.pdf-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.pdf-table th { background: #eef3ea; color: #4f6b45; text-align: left; padding: 8px 10px; font-weight: 700; border-bottom: 2px solid #b9952f; }
+.pdf-table td { padding: 7px 10px; border-bottom: 1px solid #e3e8dd; vertical-align: top; }
+.pdf-badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 10px; font-weight: 700; }
+.pdf-badge.Done { background: #e1ecd9; color: #4f6b45; }
+.pdf-badge.Pending { background: #f6e2dd; color: #b3503f; }
+.pdf-badge.InProcess { background: #f3ead0; color: #9c7c1e; }
+.pdf-footer { position: absolute; bottom: 26px; left: 56px; right: 56px; display: flex; justify-content: space-between; font-size: 9.5px; color: #7d8277; border-top: 1px solid #d8dfd0; padding-top: 8px; }
+.pdf-footer .gold-dot { color: #b9952f; }
 </style>
 </head>
 <body>
-
-<!-- ===== APP HEADER ===== -->
 <header class="app-header">
   <div class="logo-mark">PR</div>
-  <div>
-    <h1>PORTFOLIO REVIEW GENERATOR</h1>
-    <span>Wealth Management · Formal Report Builder</span>
+  <div class="titles">
+    <h1>Pranitya Portfolio Review</h1>
+    <span class="tag">Wealth Advisory Toolkit</span>
   </div>
+  <button class="back-btn" id="backBtn" onclick="goHome()">&larr; Home</button>
 </header>
 
-<!-- ===== APP BODY ===== -->
-<div class="app-body no-print">
+<div class="app-body">
 
-  <!-- Step Tabs -->
-  <div class="step-tabs">
-    <div class="step-tab active" onclick="switchTab(0)">Part A — Overview</div>
-    <div class="step-tab" onclick="switchTab(1)">Part B — Portfolio</div>
-    <div class="step-tab" onclick="switchTab(2)">Part C — Detailed Review</div>
-    <div class="step-tab" onclick="switchTab(3)">Part D — Actionables</div>
-  </div>
-
-  <!-- ===== PART A ===== -->
-  <div class="step-panel active" id="panel-0">
-    <div class="card">
-      <div class="card-header">
-        <span class="part-badge">Part A</span>
-        <h2>Client Overview</h2>
-      </div>
-      <div class="field-grid three">
-        <div class="field-group"><label>Client Name</label><input type="text" id="clientName" placeholder="e.g. Mr. Rajesh Sharma"></div>
-        <div class="field-group"><label>Review Date</label><input type="date" id="reviewDate"></div>
-        <div class="field-group"><label>Advisor Name</label><input type="text" id="advisorName" placeholder="Wealth Manager"></div>
-        <div class="field-group"><label>Client ID / Code</label><input type="text" id="clientId" placeholder="WM-0001"></div>
-        <div class="field-group"><label>Review Period</label><input type="text" id="reviewPeriod" placeholder="Q1 FY2025-26"></div>
-        <div class="field-group"><label>Next Review Due</label><input type="date" id="nextReview"></div>
-      </div>
+  <!-- =========================================================
+       SCREEN 0 — LANDING
+  ========================================================== -->
+  <section class="screen active" id="screen-home">
+    <div class="landing-intro">
+      <h2>Welcome back</h2>
+      <p>Choose what you'd like to work on.</p>
     </div>
+    <div class="card-grid">
+      <button class="big-card" onclick="showScreen('review')">
+        <span class="num">01</span>
+        <h3>Generate Review</h3>
+        <p>Build and export a formal portfolio review document for a client, covering performance, allocation, fund commentary and action items.</p>
+        <span class="go">Open &rarr;</span>
+      </button>
+      <button class="big-card" onclick="showScreen('mom')">
+        <span class="num">02</span>
+        <h3>Minutes of Meeting</h3>
+        <p>Search a client, log a new MOM, update the standing mandate, or view past minutes — with calendar reminders and email export.</p>
+        <span class="go">Open &rarr;</span>
+      </button>
+      <button class="big-card" onclick="showScreen('basic')">
+        <span class="num">03</span>
+        <h3>Basic Data of Client</h3>
+        <p>Onboard a new client or add investors to an existing group, set bias and allocation, and record the initial mandate.</p>
+        <span class="go">Open &rarr;</span>
+      </button>
+    </div>
+  </section>
 
+  <!-- =========================================================
+       SCREEN 3 — BASIC DATA OF CLIENT
+  ========================================================== -->
+  <section class="screen" id="screen-basic">
     <div class="card">
       <div class="card-header">
-        <span class="part-badge">Part A</span>
-        <h2>Client Risk Profile</h2>
+        <h3>Client</h3>
+        <span class="hint">Mock data — stored in this browser only</span>
       </div>
       <div class="field-grid">
         <div class="field-group">
-          <label>Risk Category</label>
-          <select id="riskProfile">
-            <option value="">Select Risk Profile</option>
-            <option>Conservative</option>
-            <option>Moderately Conservative</option>
-            <option>Moderate</option>
-            <option>Moderately Aggressive</option>
-            <option>Aggressive</option>
+          <label>Select Existing Client</label>
+          <select id="bd-clientSelect" onchange="loadClientIntoBasicData()">
+            <option value="">— New Client —</option>
           </select>
         </div>
         <div class="field-group">
-          <label>Investment Horizon</label>
-          <input type="text" id="horizon" placeholder="e.g. 7–10 years">
+          <label>Client Name</label>
+          <input type="text" id="bd-clientName" placeholder="e.g. Sharma Family Office">
         </div>
-        <div class="field-group full">
-          <label>Client Mandate / Requirement</label>
-          <textarea id="mandate" placeholder="Describe client's primary investment objective, constraints, liquidity needs, etc."></textarea>
-        </div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="part-badge">Part A</span>
-        <h2>Minutes of Previous Review</h2>
-      </div>
-      <div id="minutesList" class="dynamic-list"></div>
-      <button class="btn-add" onclick="addMinute()">+ Add Action Point</button>
-    </div>
-  </div>
-
-  <!-- ===== PART B ===== -->
-  <div class="step-panel" id="panel-1">
-    <div class="card">
-      <div class="card-header">
-        <span class="part-badge">Part B</span>
-        <h2>Returns Summary</h2>
-      </div>
-      <div class="field-grid three">
-        <div class="field-group"><label>XIRR (%)</label><input type="text" id="xirr" placeholder="e.g. 14.2%"></div>
-        <div class="field-group"><label>Realised Return (%)</label><input type="text" id="realisedReturn" placeholder="e.g. 11.5%"></div>
-        <div class="field-group"><label>Unrealised Return (%)</label><input type="text" id="unrealisedReturn" placeholder="e.g. 18.7%"></div>
-        <div class="field-group"><label>Portfolio Value (₹)</label><input type="text" id="portfolioValue" placeholder="e.g. ₹2,45,00,000"></div>
-        <div class="field-group"><label>Total Invested (₹)</label><input type="text" id="totalInvested" placeholder="e.g. ₹1,80,00,000"></div>
-        <div class="field-group"><label>Est. Run Rate (3Yr CAGR)</label><input type="text" id="runRate" placeholder="e.g. 13.8%"></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="part-badge">Part B</span>
-        <h2>Asset Allocation</h2>
-      </div>
-      <div class="field-grid" style="margin-bottom:16px">
         <div class="field-group">
-          <label>Allocation Table Label</label>
-          <input type="text" id="allocLabel" value="Current vs Target Asset Allocation">
+          <label>&nbsp;</label>
+          <button class="btn btn-outline" onclick="newClientInBasicData()">+ Start New Client</button>
         </div>
       </div>
-      <div id="allocList" class="dynamic-list"></div>
-      <button class="btn-add" onclick="addAlloc()">+ Add Asset Class</button>
     </div>
 
     <div class="card">
       <div class="card-header">
-        <span class="part-badge">Part B</span>
-        <h2>Assets Held — Performance Summary</h2>
+        <h3>Investors in this Group</h3>
+        <span class="hint">Names are stored in ALL CAPS</span>
       </div>
-      <div id="assetList" class="dynamic-list"></div>
-      <button class="btn-add" onclick="addAsset()">+ Add Fund / Asset</button>
+      <div class="dynamic-row" style="grid-template-columns: 2fr 1fr 1fr 32px; margin-bottom: 8px;">
+        <span class="field-group"><label>Investor</label></span>
+        <span class="field-group"><label>Bias</label></span>
+        <span class="field-group"><label>Allocation</label></span>
+        <span></span>
+      </div>
+      <div id="investorList" class="dynamic-list"></div>
+      <button class="btn-add-row" onclick="addInvestorRow()">+ Add Investor</button>
     </div>
 
     <div class="card">
-      <div class="card-header">
-        <span class="part-badge">Part B</span>
-        <h2>AMC & Category Distribution Notes</h2>
-      </div>
+      <div class="card-header"><h3>Initial Mandate</h3></div>
       <div class="field-group">
-        <label>Overlap / Concentration Notes</label>
-        <textarea id="overlapNotes" rows="4" placeholder="Note any overlap in mutual funds, AMC concentration, category concentration, etc."></textarea>
+        <label>Mandate at Onboarding</label>
+        <textarea id="bd-mandate" rows="4" placeholder="Describe the client's investment objective, constraints, liquidity needs at onboarding..."></textarea>
       </div>
     </div>
-  </div>
 
-  <!-- ===== PART C ===== -->
-  <div class="step-panel" id="panel-2">
-    <div class="card">
-      <div class="card-header">
-        <span class="part-badge">Part C</span>
-        <h2>Fund-wise Comments & Analysis</h2>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="saveBasicData()">Save Client Data</button>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       SCREEN 2 — MINUTES OF MEETING
+  ========================================================== -->
+  <section class="screen" id="screen-mom">
+    <div class="card" id="mom-searchCard">
+      <div class="card-header"><h3>Find Client</h3></div>
+      <div class="field-group" style="position:relative; max-width:420px;">
+        <label>Enter</label>
+        <input type="text" id="mom-search" placeholder="Client name" autocomplete="off" oninput="momSearchInput()">
+        <div id="mom-suggestions" class="autocomplete-box" style="display:none;"></div>
       </div>
-      <div id="fundList" class="dynamic-list"></div>
-      <button class="btn-add" onclick="addFund()">+ Add Fund / Holding</button>
     </div>
 
-    <div class="card">
-      <div class="card-header">
-        <span class="part-badge">Part C</span>
-        <h2>Capital Gains Review</h2>
+    <div class="card" id="mom-actionsCard" style="display:none;">
+      <div class="card-header"><h3 id="mom-selectedClientLabel">Client</h3>
+        <button class="btn-text" onclick="momResetSearch()">Change client</button>
       </div>
-      <div class="field-grid three">
-        <div class="field-group"><label>STCG — Equity (₹)</label><input type="text" id="stcgEq" placeholder="e.g. ₹1,20,000"></div>
-        <div class="field-group"><label>LTCG — Equity (₹)</label><input type="text" id="ltcgEq" placeholder="e.g. ₹3,45,000"></div>
-        <div class="field-group"><label>STCG — Debt (₹)</label><input type="text" id="stcgDebt" placeholder="e.g. ₹40,000"></div>
-        <div class="field-group"><label>LTCG — Debt (₹)</label><input type="text" id="ltcgDebt" placeholder="e.g. ₹80,000"></div>
-        <div class="field-group"><label>Tax Harvesting Opportunity</label><input type="text" id="taxHarvest" placeholder="e.g. ₹50,000 LTCG available"></div>
-        <div class="field-group"><label>Financial Year</label><input type="text" id="capGainFY" placeholder="e.g. FY 2025-26"></div>
-      </div>
-      <div class="field-group" style="margin-top:12px">
-        <label>Capital Gain Remarks</label>
-        <textarea id="capGainRemarks" placeholder="Additional notes on capital gains, tax implications, harvesting strategy..."></textarea>
+      <div class="btn-row" style="margin-top:0;">
+        <button class="btn btn-primary" onclick="momStartNew()">Create New MOM</button>
+        <button class="btn btn-outline" onclick="momUpdateMandate()">Update Mandate</button>
+        <button class="btn btn-outline" onclick="momViewList()">View MOM</button>
       </div>
     </div>
-  </div>
 
-  <!-- ===== PART D ===== -->
-  <div class="step-panel" id="panel-3">
-    <div class="card">
-      <div class="card-header">
-        <span class="part-badge">Part D</span>
-        <h2>Actionables — Changes to be Made</h2>
-      </div>
-      <div id="actionList" class="dynamic-list"></div>
-      <button class="btn-add" onclick="addAction()">+ Add Action</button>
-    </div>
-
-    <div class="card">
-      <div class="card-header">
-        <span class="part-badge">Part D</span>
-        <h2>Additional Investment Plan</h2>
-      </div>
+    <div id="mom-mandateUpdateCard" class="card" style="display:none;">
+      <div class="card-header"><h3>Update Mandate</h3></div>
       <div class="field-group">
-        <label>Investment Plan Details</label>
-        <textarea id="investPlan" rows="4" placeholder="New SIP amounts, lump sum deployment plan, funds earmarked for fresh allocation..."></textarea>
+        <label>Revised Mandate</label>
+        <textarea id="mom-mandateText" rows="4" placeholder="Enter the updated mandate. This is appended to the Mandates log with today's date."></textarea>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveMandateUpdate()">Save Mandate Update</button>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-header">
-        <span class="part-badge">Part D</span>
-        <h2>Corpus Simulation</h2>
-      </div>
-      <div id="simList" class="dynamic-list"></div>
-      <button class="btn-add" onclick="addSim()">+ Add Simulation Scenario</button>
+    <div id="mom-listCard" class="card" style="display:none;">
+      <div class="card-header"><h3>Past Minutes of Meeting</h3></div>
+      <div id="mom-pastList"></div>
     </div>
 
-    <div class="generate-bar">
-      <p>All data entered? Generate your elegant PDF report.</p>
-      <button class="btn-generate" onclick="generatePDF()">⬇ Generate PDF</button>
-    </div>
-  </div>
-
-</div><!-- end app-body -->
-
-
-<!-- ===== PDF DOCUMENT ===== -->
-<div class="pdf-document" id="pdfDoc">
-
-  <!-- PAGE 1: COVER -->
-  <div class="pdf-page cover-page" id="coverPage">
-    <div class="cover-top-bar"></div>
-    <div class="cover-body">
-      <div class="cover-watermark">₹</div>
-      <div class="cover-eyebrow">Confidential · Wealth Management</div>
-      <div class="cover-title">Portfolio<br><em>Review</em></div>
-      <div class="cover-divider"></div>
-      <div class="cover-client" id="pdf-clientName">Client Name</div>
-      <div class="cover-meta">
-        <div class="cover-meta-item">
-          <span class="cover-meta-label">Review Date</span>
-          <span class="cover-meta-value" id="pdf-reviewDate">—</span>
-        </div>
-        <div class="cover-meta-item">
-          <span class="cover-meta-label">Period</span>
-          <span class="cover-meta-value" id="pdf-reviewPeriod">—</span>
-        </div>
-        <div class="cover-meta-item">
-          <span class="cover-meta-label">Advisor</span>
-          <span class="cover-meta-value" id="pdf-advisorName">—</span>
+    <div id="mom-formCard" style="display:none;">
+      <div class="card">
+        <div class="card-header"><h3>Meeting Details</h3></div>
+        <div class="field-grid">
+          <div class="field-group"><label>Date of Meeting</label><input type="date" id="mom-date"></div>
+          <div class="field-group"><label>Generate Reminder</label>
+            <select id="mom-reminder">
+              <option value="">No reminder</option>
+              <option value="1">1 day before</option>
+              <option value="3">3 days before</option>
+              <option value="7">7 days before</option>
+            </select>
+          </div>
         </div>
       </div>
-    </div>
-    <div class="cover-bottom-bar">
-      <div class="firm-name">Confidential — For Client Use Only</div>
-    </div>
-  </div>
 
-  <!-- PAGE 2: PART A -->
-  <div class="pdf-page inner-page" id="pagePartA">
-    <div class="page-header">
-      <div class="part-label">Part A — Overview</div>
-      <div class="page-title">Client Profile & Risk Mandate</div>
-      <div class="client-mini" id="pdf-clientMini">Client</div>
-    </div>
-    <div class="gold-rule"></div>
-    <div class="page-content">
-      <div class="section-label">Client Details</div>
-      <div class="info-grid" id="pdf-clientDetails"></div>
-
-      <div class="section-label">Risk Profile & Mandate</div>
-      <div class="comment-block">
-        <div class="cb-label">Risk Category</div>
-        <p id="pdf-riskProfile">—</p>
-      </div>
-      <div class="comment-block">
-        <div class="cb-label">Investment Horizon</div>
-        <p id="pdf-horizon">—</p>
-      </div>
-      <div class="comment-block">
-        <div class="cb-label">Client Mandate / Requirement</div>
-        <p id="pdf-mandate">—</p>
+      <div class="card">
+        <div class="card-header">
+          <h3>Actionables</h3>
+          <span class="hint">Status: Done / In Process / Pending</span>
+        </div>
+        <div id="mom-actionableList" class="dynamic-list"></div>
+        <button class="btn-add-row" onclick="addMomActionable()">+ Add Actionable</button>
       </div>
 
-      <div class="section-label" style="margin-top:6mm">Previous Review — Action Status</div>
-      <table class="pdf-table" id="pdf-minutesTable">
-        <thead><tr>
-          <th style="width:55%">Action Point</th>
-          <th>Status</th>
-          <th>Remarks</th>
-        </tr></thead>
-        <tbody id="pdf-minutesTbody"></tbody>
-      </table>
-    </div>
-    <div class="page-footer">
-      <span class="footer-left" id="pdf-footerClient2">Portfolio Review</span>
-      <span class="page-num">02</span>
-    </div>
-  </div>
-
-  <!-- PAGE 3: PART B -->
-  <div class="pdf-page inner-page" id="pagePartB">
-    <div class="page-header">
-      <div class="part-label">Part B — Investment Portfolio</div>
-      <div class="page-title">Returns & Asset Allocation</div>
-      <div class="client-mini" id="pdf-clientMini3">Client</div>
-    </div>
-    <div class="gold-rule"></div>
-    <div class="page-content">
-      <div class="section-label">Portfolio Returns Summary</div>
-      <div class="return-cards" id="pdf-returnCards"></div>
-
-      <div class="section-label">Asset Allocation — Current vs Target</div>
-      <div class="alloc-section" id="pdf-allocBars"></div>
-
-      <div class="section-label">Assets Held — Performance Summary</div>
-      <table class="pdf-table" id="pdf-assetTable">
-        <thead><tr>
-          <th>Fund / Asset</th><th>Category</th>
-          <th class="num">1Y Return</th><th class="num">3Y CAGR</th>
-          <th class="num">Allocation (%)</th><th>Rating</th>
-        </tr></thead>
-        <tbody id="pdf-assetTbody"></tbody>
-      </table>
-
-      <div class="section-label">AMC & Overlap Notes</div>
-      <div class="comment-block">
-        <p id="pdf-overlapNotes">—</p>
-      </div>
-    </div>
-    <div class="page-footer">
-      <span class="footer-left" id="pdf-footerClient3">Portfolio Review</span>
-      <span class="page-num">03</span>
-    </div>
-  </div>
-
-  <!-- PAGE 4: PART C -->
-  <div class="pdf-page inner-page" id="pagePartC">
-    <div class="page-header">
-      <div class="part-label">Part C — Detailed Portfolio Review</div>
-      <div class="page-title">Fund Analysis & Capital Gains</div>
-      <div class="client-mini" id="pdf-clientMini4">Client</div>
-    </div>
-    <div class="gold-rule"></div>
-    <div class="page-content">
-      <div class="section-label">Fund-wise Comments & Analysis</div>
-      <div id="pdf-fundComments"></div>
-
-      <div class="section-label" style="margin-top:5mm">Capital Gains Review</div>
-      <table class="pdf-table" id="pdf-capGainTable">
-        <thead><tr>
-          <th>Type</th><th>Category</th>
-          <th class="num">Amount (₹)</th><th>Notes</th>
-        </tr></thead>
-        <tbody id="pdf-capGainTbody"></tbody>
-      </table>
-      <div class="comment-block" id="pdf-capGainRemarks" style="display:none">
-        <div class="cb-label">Capital Gain Remarks</div>
-        <p id="pdf-capGainRemarksText">—</p>
-      </div>
-    </div>
-    <div class="page-footer">
-      <span class="footer-left" id="pdf-footerClient4">Portfolio Review</span>
-      <span class="page-num">04</span>
-    </div>
-  </div>
-
-  <!-- PAGE 5: PART D -->
-  <div class="pdf-page inner-page" id="pagePartD">
-    <div class="page-header">
-      <div class="part-label">Part D — Actionables</div>
-      <div class="page-title">Recommendations & Corpus Simulation</div>
-      <div class="client-mini" id="pdf-clientMini5">Client</div>
-    </div>
-    <div class="gold-rule"></div>
-    <div class="page-content">
-      <div class="section-label">Changes to be Made</div>
-      <table class="pdf-table">
-        <thead><tr>
-          <th>Action / Fund</th><th>Type</th>
-          <th class="num">Amount (₹)</th><th>Tax Impact</th>
-        </tr></thead>
-        <tbody id="pdf-actionTbody"></tbody>
-      </table>
-
-      <div class="section-label" style="margin-top:5mm">Additional Investment Plan</div>
-      <div class="comment-block">
-        <p id="pdf-investPlan">—</p>
+      <div class="card">
+        <div class="card-header"><h3>Review Mandate</h3>
+          <span class="hint">If filled, updates the Mandates log with today's date</span>
+        </div>
+        <textarea id="mom-reviewMandate" rows="3" placeholder="(Big box for comments)"></textarea>
       </div>
 
-      <div class="section-label" style="margin-top:5mm">Corpus Simulation Scenarios</div>
-      <div id="pdf-simBoxes"></div>
-    </div>
-    <div class="page-footer">
-      <span class="footer-left" id="pdf-footerClient5">Portfolio Review</span>
-      <span class="page-num">05</span>
-    </div>
-  </div>
+      <div class="card">
+        <div class="card-header"><h3>Other Points / Comments</h3></div>
+        <textarea id="mom-otherComments" rows="3" placeholder="(Big box for comments)"></textarea>
+      </div>
 
-</div><!-- end pdf-document -->
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveMom()">Save MOM</button>
+        <button class="btn btn-outline" onclick="exportMomCsv()">Download CSV</button>
+        <button class="btn btn-outline" onclick="exportMomPdf()">Download PDF</button>
+        <button class="btn btn-outline" onclick="downloadMomIcs()">Add to Calendar (.ics)</button>
+        <button class="btn btn-outline" onclick="emailMom()">Email MOM</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- =========================================================
+       SCREEN 1 — GENERATE REVIEW
+  ========================================================== -->
+  <section class="screen" id="screen-review">
+    <div class="card" id="review-pickCard">
+      <div class="card-header"><h3>Select Client</h3></div>
+      <div class="field-group" style="max-width:420px;">
+        <label>Client</label>
+        <select id="review-clientSelect" onchange="loadClientIntoReview()">
+          <option value="">— Choose a client —</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="review-body" style="display:none;">
+      <div class="card">
+        <div class="card-header"><h3>Investors &amp; Standing Data</h3></div>
+        <div id="review-investorSummary"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Latest Mandate</h3></div>
+        <textarea id="review-mandate" rows="3"></textarea>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Latest Minutes of Meeting — Action Status</h3></div>
+        <div id="review-momStatusList"></div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveReviewPartA()">Save</button>
+        <button class="btn btn-outline" onclick="exportReviewCsv()">Download CSV</button>
+        <button class="btn btn-outline" onclick="exportReviewPdf()">Download PDF</button>
+        <button class="btn btn-gold" onclick="goToReviewPartB()">Continue to Investment Portfolio &rarr;</button>
+      </div>
+
+      <div id="review-partB" style="display:none;">
+        <div class="card">
+          <div class="card-header"><h3>Part B — Investment Portfolio</h3></div>
+          <div class="field-grid">
+            <div class="field-group"><label>XIRR (%)</label><input type="text" id="xirr" placeholder="e.g. 14.2%"></div>
+            <div class="field-group"><label>Realised Return (%)</label><input type="text" id="realisedReturn" placeholder="e.g. 11.5%"></div>
+            <div class="field-group"><label>Unrealised Return (%)</label><input type="text" id="unrealisedReturn" placeholder="e.g. 18.7%"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>1 &amp; 3 — Summary of Returns / Current Asset Allocation</h3>
+            <span class="hint">Upload CSV for the engine to analyse</span>
+          </div>
+          <input type="file" id="upload-1" accept=".csv">
+          <p class="hint" id="upload-1-status" style="margin-top:6px;"></p>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>2 &amp; 4 — Estimated Run Rate / Target Allocation</h3></div>
+          <div id="allocList" class="dynamic-list"></div>
+          <button class="btn-add-row" onclick="addAlloc()">+ Add Asset Class</button>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>5 — Rebalancing to Mitigate Deviation</h3></div>
+          <textarea id="rebalanceNotes" rows="3" placeholder="Under/over allocation, change in risk profile or mandate..."></textarea>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>6 — Assets Held: Performance / Risk Profile</h3></div>
+          <textarea id="assetsSummary" rows="3" placeholder="Summary only..."></textarea>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>7 — Overlap of Mutual Funds</h3>
+            <span class="hint">Upload CSV for the engine to analyse</span>
+          </div>
+          <input type="file" id="upload-7" accept=".csv">
+          <p class="hint" id="upload-7-status" style="margin-top:6px;"></p>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>8 — AMC &amp; Category Distribution</h3>
+            <span class="hint">Upload CSV — no concentration in any one strategy/fund</span>
+          </div>
+          <input type="file" id="upload-8" accept=".csv">
+          <p class="hint" id="upload-8-status" style="margin-top:6px;"></p>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Fund-Level Commentary</h3></div>
+          <div id="fundList" class="dynamic-list"></div>
+          <button class="btn-add-row" onclick="addFund()">+ Add Fund</button>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Action Points</h3></div>
+          <div id="actionList" class="dynamic-list"></div>
+          <button class="btn-add-row" onclick="addAction()">+ Add Action</button>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="saveReviewPartB()">Save</button>
+          <button class="btn btn-outline" onclick="exportReviewCsv()">Download CSV</button>
+          <button class="btn btn-gold" onclick="exportReviewPdf()">Download Full PDF</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ============================================================
+     OFF-SCREEN PDF RENDER TEMPLATES (built by JS, captured by html2canvas)
+============================================================ -->
+<div id="pdfRoot" style="position:fixed; left:-9999px; top:0; width:794px; background:#fff;"></div>
 
 <script>
-// ============================================================
-//  DATA STORE
-// ============================================================
-let minutes = [], assets = [], allocs = [], funds = [], actions = [], sims = [];
+// ================================================================
+//  PORTFOLIO REVIEW — APPLICATION SCRIPT
+//  Phase 1: mock data layer using localStorage. Every place that will
+//  eventually call Google Apps Script (Sheets/Drive) is marked with
+//  "TODO(APPS_SCRIPT)" so the swap-over is a clean, contained edit.
+// ================================================================
 
-// ============================================================
-//  TAB SWITCH
-// ============================================================
-function switchTab(i) {
-  document.querySelectorAll('.step-tab').forEach((t,j) => t.classList.toggle('active', i===j));
-  document.querySelectorAll('.step-panel').forEach((p,j) => p.classList.toggle('active', i===j));
+// ---- ID generator: fixes the Date.now()-collision bug from the
+// original tool, where two rows added in the same millisecond got
+// duplicate DOM ids and silently broke. ----
+let __idCounter = 0;
+function uid(prefix) { __idCounter += 1; return `${prefix}-${Date.now()}-${__idCounter}`; }
+
+// Real, editable finance terms standing in for the narration's
+// "Bias 1..5" / "Allocation 1..5" placeholders — swap these any time.
+const BIAS_OPTIONS = ['Conservative', 'Moderate', 'Balanced', 'Growth', 'Aggressive'];
+const ALLOCATION_OPTIONS = ['Underweight', 'Slightly Underweight', 'Neutral', 'Slightly Overweight', 'Overweight'];
+
+// ================================================================
+//  DATA LAYER (localStorage mock — TODO(APPS_SCRIPT): replace get/save
+//  with calls to a Google Apps Script web app that reads/writes the
+//  master Sheet + per-client Drive folders described in the brief)
+// ================================================================
+const DB_KEY = 'portfolioReviewDB_v1';
+
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (!raw) return { clients: {} };
+    const parsed = JSON.parse(raw);
+    if (!parsed.clients) parsed.clients = {};
+    return parsed;
+  } catch (e) {
+    console.error('DB load failed, starting fresh', e);
+    return { clients: {} };
+  }
+}
+function saveDB(db) {
+  try { localStorage.setItem(DB_KEY, JSON.stringify(db)); }
+  catch (e) { showToast('Could not save — local storage may be full.', true); }
+}
+let DB = loadDB();
+
+function clientList() { return Object.values(DB.clients).sort((a,b) => a.name.localeCompare(b.name)); }
+function getClient(id) { return DB.clients[id]; }
+function latestMandate(client) {
+  if (!client.mandates || !client.mandates.length) return null;
+  return [...client.mandates].sort((a,b) => (a.date < b.date ? 1 : -1))[0];
+}
+function latestMom(client) {
+  if (!client.moms || !client.moms.length) return null;
+  return [...client.moms].sort((a,b) => (a.date < b.date ? 1 : -1))[0];
 }
 
-// ============================================================
-//  DYNAMIC ROW BUILDERS
-// ============================================================
-function addMinute() {
-  const id = Date.now();
-  minutes.push(id);
+// ================================================================
+//  NAV
+// ================================================================
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('backBtn').classList.toggle('show', name !== 'home');
+  refreshClientDropdowns();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function goHome() { showScreen('home'); }
+
+function refreshClientDropdowns() {
+  const clients = clientList();
+  const opts = clients.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const bdSel = document.getElementById('bd-clientSelect');
+  if (bdSel) bdSel.innerHTML = `<option value="">— New Client —</option>` + opts;
+  const revSel = document.getElementById('review-clientSelect');
+  if (revSel) revSel.innerHTML = `<option value="">— Choose a client —</option>` + opts;
+}
+
+function showToast(msg, isError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(t.__timer);
+  t.__timer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function v(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+function fmtDate(d) {
+  if (!d) return '—';
+  try { return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}); }
+  catch (e) { return d; }
+}
+function todayISO() { return new Date().toISOString().slice(0,10); }
+
+// ================================================================
+//  SCREEN 3 — BASIC DATA OF CLIENT
+// ================================================================
+let bdCurrentClientId = null;
+
+function newClientInBasicData() {
+  bdCurrentClientId = null;
+  document.getElementById('bd-clientSelect').value = '';
+  document.getElementById('bd-clientName').value = '';
+  document.getElementById('bd-mandate').value = '';
+  document.getElementById('investorList').innerHTML = '';
+  addInvestorRow();
+}
+
+function loadClientIntoBasicData() {
+  const id = document.getElementById('bd-clientSelect').value;
+  if (!id) { newClientInBasicData(); return; }
+  bdCurrentClientId = id;
+  const client = getClient(id);
+  document.getElementById('bd-clientName').value = client.name;
+  document.getElementById('investorList').innerHTML = '';
+  (client.investors || []).forEach(inv => addInvestorRow(inv));
+  if (!client.investors || !client.investors.length) addInvestorRow();
+  const lm = latestMandate(client);
+  document.getElementById('bd-mandate').value = lm ? lm.text : '';
+}
+
+function addInvestorRow(data) {
+  const id = uid('inv');
   const row = document.createElement('div');
-  row.className = 'dynamic-row'; row.id = 'min-'+id;
+  row.className = 'dynamic-row';
+  row.id = id;
   row.style.gridTemplateColumns = '2fr 1fr 1fr 32px';
   row.innerHTML = `
-    <div class="field-group"><label>Action Point</label><input type="text" id="min-point-${id}" placeholder="e.g. Rebalance equity to 60%"></div>
+    <div class="field-group"><input type="text" id="${id}-name" placeholder="Investor name" value="${escapeHtml(data?.name || '')}"></div>
+    <div class="field-group"><select id="${id}-bias">${BIAS_OPTIONS.map(o => `<option ${data?.bias===o?'selected':''}>${o}</option>`).join('')}</select></div>
+    <div class="field-group"><select id="${id}-allocation">${ALLOCATION_OPTIONS.map(o => `<option ${data?.allocation===o?'selected':''}>${o}</option>`).join('')}</select></div>
+    <button class="btn-remove" onclick="document.getElementById('${id}').remove()" title="Remove">&times;</button>
+  `;
+  document.getElementById('investorList').appendChild(row);
+}
+
+function saveBasicData() {
+  const name = v('bd-clientName');
+  if (!name) { showToast('Client name is required.', true); return; }
+
+  const rows = [...document.getElementById('investorList').children];
+  const investors = rows.map(row => {
+    const nameVal = document.getElementById(row.id + '-name').value.trim().toUpperCase();
+    return {
+      id: row.id,
+      name: nameVal,
+      bias: document.getElementById(row.id + '-bias').value,
+      allocation: document.getElementById(row.id + '-allocation').value,
+    };
+  }).filter(i => i.name);
+
+  if (!investors.length) { showToast('Add at least one investor.', true); return; }
+
+  const id = bdCurrentClientId || uid('client');
+  const existing = DB.clients[id];
+  const mandateText = v('bd-mandate');
+  const mandates = existing?.mandates ? [...existing.mandates] : [];
+  if (mandateText && !mandates.length) {
+    mandates.push({ date: todayISO(), text: mandateText });
+  } else if (mandateText && mandates.length && mandates[mandates.length-1].text !== mandateText) {
+    // first-entry mandate edited before any MOM exists — keep single record in sync
+    mandates[0] = { date: mandates[0].date, text: mandateText };
+  }
+
+  DB.clients[id] = {
+    id, name, investors, mandates,
+    moms: existing?.moms || [],
+  };
+  saveDB(DB);
+  // TODO(APPS_SCRIPT): mirror this write to the client's "MoM and Mandates"
+  // Google Sheet (Investors tab) and create the client's Drive subfolder if new.
+  bdCurrentClientId = id;
+  refreshClientDropdowns();
+  document.getElementById('bd-clientSelect').value = id;
+  showToast('Client data saved.');
+}
+
+// ================================================================
+//  SCREEN 2 — MINUTES OF MEETING
+// ================================================================
+let momSelectedClientId = null;
+let momActionableRows = [];
+
+function momSearchInput() {
+  const q = v('mom-search').toLowerCase();
+  const box = document.getElementById('mom-suggestions');
+  if (!q) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  const matches = clientList().filter(c => c.name.toLowerCase().includes(q));
+  box.innerHTML = matches.length
+    ? matches.map(c => `<div class="autocomplete-item" onclick="momSelectClient('${c.id}')">${escapeHtml(c.name)}</div>`).join('')
+    : `<div class="autocomplete-empty">No client matches "${escapeHtml(v('mom-search'))}"</div>`;
+  box.style.display = 'block';
+}
+
+function momSelectClient(id) {
+  momSelectedClientId = id;
+  const client = getClient(id);
+  document.getElementById('mom-search').value = client.name;
+  document.getElementById('mom-suggestions').style.display = 'none';
+  document.getElementById('mom-selectedClientLabel').textContent = client.name;
+  document.getElementById('mom-actionsCard').style.display = 'block';
+  ['mom-mandateUpdateCard','mom-listCard','mom-formCard'].forEach(id2 => document.getElementById(id2).style.display = 'none');
+}
+
+function momResetSearch() {
+  momSelectedClientId = null;
+  document.getElementById('mom-search').value = '';
+  document.getElementById('mom-actionsCard').style.display = 'none';
+  ['mom-mandateUpdateCard','mom-listCard','mom-formCard'].forEach(id => document.getElementById(id).style.display = 'none');
+}
+
+function requireMomClient() {
+  if (!momSelectedClientId) { showToast('Select a client first.', true); return null; }
+  return getClient(momSelectedClientId);
+}
+
+function momUpdateMandate() {
+  if (!requireMomClient()) return;
+  document.getElementById('mom-mandateUpdateCard').style.display = 'block';
+  document.getElementById('mom-listCard').style.display = 'none';
+  document.getElementById('mom-formCard').style.display = 'none';
+  document.getElementById('mom-mandateText').value = '';
+}
+
+function saveMandateUpdate() {
+  const client = requireMomClient();
+  if (!client) return;
+  const text = v('mom-mandateText');
+  if (!text) { showToast('Enter the updated mandate.', true); return; }
+  client.mandates = client.mandates || [];
+  client.mandates.push({ date: todayISO(), text });
+  saveDB(DB);
+  // TODO(APPS_SCRIPT): append a row to the Mandates tab of this client's sheet.
+  showToast('Mandate updated.');
+  document.getElementById('mom-mandateText').value = '';
+}
+
+function momViewList() {
+  const client = requireMomClient();
+  if (!client) return;
+  document.getElementById('mom-listCard').style.display = 'block';
+  document.getElementById('mom-mandateUpdateCard').style.display = 'none';
+  document.getElementById('mom-formCard').style.display = 'none';
+  const moms = [...(client.moms || [])].sort((a,b) => (a.date < b.date ? 1 : -1));
+  document.getElementById('mom-pastList').innerHTML = moms.length
+    ? moms.map((m, i) => `
+      <div class="mom-list-entry">
+        <div><div class="date">${fmtDate(m.date)}</div><div class="meta">${(m.actionables||[]).length} actionable(s)</div></div>
+        <button class="btn btn-outline" onclick="momLoadIntoForm('${m.id}')">Open</button>
+      </div>`).join('')
+    : '<p class="hint">No minutes recorded yet for this client.</p>';
+}
+
+function momStartNew() {
+  if (!requireMomClient()) return;
+  document.getElementById('mom-formCard').style.display = 'block';
+  document.getElementById('mom-listCard').style.display = 'none';
+  document.getElementById('mom-mandateUpdateCard').style.display = 'none';
+  document.getElementById('mom-date').valueAsDate = new Date();
+  document.getElementById('mom-reminder').value = '';
+  document.getElementById('mom-reviewMandate').value = '';
+  document.getElementById('mom-otherComments').value = '';
+  document.getElementById('mom-actionableList').innerHTML = '';
+  momActionableRows = [];
+  addMomActionable();
+  momCurrentEditingId = null;
+}
+
+let momCurrentEditingId = null;
+function momLoadIntoForm(momId) {
+  const client = requireMomClient();
+  if (!client) return;
+  const mom = client.moms.find(m => m.id === momId);
+  if (!mom) return;
+  document.getElementById('mom-formCard').style.display = 'block';
+  document.getElementById('mom-listCard').style.display = 'none';
+  document.getElementById('mom-date').value = mom.date;
+  document.getElementById('mom-reminder').value = mom.reminder || '';
+  document.getElementById('mom-reviewMandate').value = mom.reviewMandate || '';
+  document.getElementById('mom-otherComments').value = mom.otherComments || '';
+  document.getElementById('mom-actionableList').innerHTML = '';
+  momActionableRows = [];
+  (mom.actionables || []).forEach(a => addMomActionable(a));
+  momCurrentEditingId = mom.id;
+}
+
+function addMomActionable(data) {
+  const id = uid('mact');
+  momActionableRows.push(id);
+  const row = document.createElement('div');
+  row.className = 'dynamic-row';
+  row.id = id;
+  row.style.gridTemplateColumns = '1.2fr 2fr 1fr 1fr 1fr 1fr 32px';
+  row.innerHTML = `
+    <div class="field-group"><label>Investor</label><input type="text" id="${id}-investor" value="${escapeHtml(data?.investor||'')}"></div>
+    <div class="field-group"><label>Actionable</label><input type="text" id="${id}-actionable" value="${escapeHtml(data?.actionable||'')}"></div>
+    <div class="field-group"><label>Responsibility</label><input type="text" id="${id}-responsibility" value="${escapeHtml(data?.responsibility||'')}"></div>
+    <div class="field-group"><label>Followup</label><input type="text" id="${id}-followup" value="${escapeHtml(data?.followup||'')}"></div>
+    <div class="field-group"><label>Timeline</label><input type="text" id="${id}-timeline" value="${escapeHtml(data?.timeline||'')}"></div>
     <div class="field-group"><label>Status</label>
-      <div class="status-row">
-        <span class="status-dot green" onclick="setStatus(${id},'green')" title="Green"></span>
-        <span class="status-dot yellow" onclick="setStatus(${id},'yellow')" title="Yellow"></span>
-        <span class="status-dot red" onclick="setStatus(${id},'red')" title="Red"></span>
-        <span class="status-label" id="min-status-lbl-${id}">Not set</span>
-        <input type="hidden" id="min-status-${id}" value="">
-      </div>
+      <select id="${id}-status" class="status-select" data-status="${data?.status||'Pending'}" onchange="this.setAttribute('data-status', this.value)">
+        <option ${data?.status==='Done'?'selected':''}>Done</option>
+        <option ${data?.status==='In Process'?'selected':''}>In Process</option>
+        <option ${(!data||data?.status==='Pending')?'selected':''}>Pending</option>
+      </select>
     </div>
-    <div class="field-group"><label>Remarks</label><input type="text" id="min-remarks-${id}" placeholder="Completed / Pending..."></div>
-    <button class="btn-remove" onclick="removeRow('min-${id}', minutes, ${id})">×</button>
+    <button class="btn-remove" onclick="document.getElementById('${id}').remove()">&times;</button>
   `;
-  document.getElementById('minutesList').appendChild(row);
+  document.getElementById('mom-actionableList').appendChild(row);
 }
 
-function setStatus(id, color) {
-  document.getElementById('min-status-'+id).value = color;
-  document.getElementById('min-status-lbl-'+id).textContent = color.charAt(0).toUpperCase()+color.slice(1);
-  ['green','yellow','red'].forEach(c => {
-    document.querySelectorAll(`#min-${id} .status-dot.${c}`).forEach(d => d.classList.toggle('selected', c===color));
-  });
+function collectMomActionables() {
+  return [...document.getElementById('mom-actionableList').children].map(row => ({
+    investor: document.getElementById(row.id + '-investor').value.trim(),
+    actionable: document.getElementById(row.id + '-actionable').value.trim(),
+    responsibility: document.getElementById(row.id + '-responsibility').value.trim(),
+    followup: document.getElementById(row.id + '-followup').value.trim(),
+    timeline: document.getElementById(row.id + '-timeline').value.trim(),
+    status: document.getElementById(row.id + '-status').value,
+  })).filter(a => a.investor || a.actionable);
 }
 
-function addAlloc() {
-  const id = Date.now();
-  allocs.push(id);
+function saveMom() {
+  const client = requireMomClient();
+  if (!client) return;
+  const date = v('mom-date');
+  if (!date) { showToast('Set the meeting date.', true); return; }
+
+  const mom = {
+    id: momCurrentEditingId || uid('mom'),
+    date,
+    reminder: v('mom-reminder'),
+    actionables: collectMomActionables(),
+    reviewMandate: v('mom-reviewMandate'),
+    otherComments: v('mom-otherComments'),
+  };
+
+  client.moms = client.moms || [];
+  const idx = client.moms.findIndex(m => m.id === mom.id);
+  if (idx > -1) client.moms[idx] = mom; else client.moms.push(mom);
+
+  if (mom.reviewMandate) {
+    client.mandates = client.mandates || [];
+    client.mandates.push({ date, text: mom.reviewMandate });
+    // TODO(APPS_SCRIPT): append to Mandates tab with this date — per the
+    // narration, a filled Review Mandate box must flow into the Mandates log.
+  }
+
+  saveDB(DB);
+  // TODO(APPS_SCRIPT): save into this client's "Minutes of Meeting" sheet
+  // inside their Drive folder.
+  momCurrentEditingId = mom.id;
+  showToast('MOM saved.');
+}
+
+function exportMomCsv() {
+  const client = requireMomClient();
+  if (!client) return;
+  const rows = collectMomActionables();
+  const header = ['Date','Investor','Actionable','Responsibility','Followup','Timeline','Status'];
+  const date = v('mom-date');
+  const lines = [header, ...rows.map(r => [date, r.investor, r.actionable, r.responsibility, r.followup, r.timeline, r.status])];
+  downloadCsv(`MOM_${client.name}_${date}.csv`, lines);
+}
+
+function downloadCsv(filename, rows) {
+  const csv = rows.map(r => r.map(cell => `"${String(cell ?? '').replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  triggerDownload(blob, filename);
+}
+function triggerDownload(blob, filename) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+function downloadMomIcs() {
+  const client = requireMomClient();
+  if (!client) return;
+  const date = v('mom-date');
+  if (!date) { showToast('Set the meeting date first.', true); return; }
+  const reminderDays = parseInt(v('mom-reminder') || '0', 10);
+  const dt = date.replace(/-/g, '');
+  const dtStamp = new Date().toISOString().replace(/[-:]/g,'').split('.')[0] + 'Z';
+  let alarm = '';
+  if (reminderDays > 0) {
+    alarm = `BEGIN:VALARM\r\nTRIGGER:-P${reminderDays}D\r\nACTION:DISPLAY\r\nDESCRIPTION:Reminder: MOM with ${client.name}\r\nEND:VALARM\r\n`;
+  }
+  const ics = `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//Portfolio Review//EN\r\nBEGIN:VEVENT\r\nUID:${uid('evt')}@portfolioreview\r\nDTSTAMP:${dtStamp}\r\nDTSTART;VALUE=DATE:${dt}\r\nSUMMARY:Minutes of Meeting — ${client.name}\r\nDESCRIPTION:Review mandate and actionables for ${client.name}.\r\n${alarm}END:VEVENT\r\nEND:VCALENDAR\r\n`;
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8;' });
+  triggerDownload(blob, `MOM_${client.name}_${date}.ics`);
+}
+
+function emailMom() {
+  const client = requireMomClient();
+  if (!client) return;
+  const date = v('mom-date');
+  const rows = collectMomActionables();
+  const body = [
+    `Minutes of Meeting — ${client.name}`,
+    `Date: ${fmtDate(date)}`,
+    '',
+    'Actionables:',
+    ...rows.map((r,i) => `${i+1}. [${r.status}] ${r.actionable} — ${r.investor} (Owner: ${r.responsibility || '—'}, Due: ${r.timeline || '—'})`),
+    '',
+    'Review Mandate:', v('mom-reviewMandate') || '—',
+    '', 'Other Comments:', v('mom-otherComments') || '—',
+  ].join('\n');
+  const subject = encodeURIComponent(`MOM — ${client.name} — ${fmtDate(date)}`);
+  window.location.href = `mailto:?subject=${subject}&body=${encodeURIComponent(body)}`;
+}
+
+function exportMomPdf() {
+  const client = requireMomClient();
+  if (!client) return;
+  const date = v('mom-date');
+  const rows = collectMomActionables();
+  const html = `
+    <div class="pdf-page">
+      <div class="pdf-header"><span class="h-title">Minutes of Meeting</span><span class="h-client">${escapeHtml(client.name)} &middot; ${fmtDate(date)}</span></div>
+      <div class="pdf-section-title">Actionables</div>
+      <table class="pdf-table"><thead><tr><th>Investor</th><th>Actionable</th><th>Responsibility</th><th>Followup</th><th>Timeline</th><th>Status</th></tr></thead>
+      <tbody>${rows.map(r => `<tr><td>${escapeHtml(r.investor)||'—'}</td><td>${escapeHtml(r.actionable)||'—'}</td><td>${escapeHtml(r.responsibility)||'—'}</td><td>${escapeHtml(r.followup)||'—'}</td><td>${escapeHtml(r.timeline)||'—'}</td><td><span class="pdf-badge ${r.status.replace(' ','')}">${r.status}</span></td></tr>`).join('') || '<tr><td colspan="6">No actionables recorded.</td></tr>'}</tbody></table>
+      <div class="pdf-section-title">Review Mandate</div>
+      <p class="pdf-p">${escapeHtml(v('mom-reviewMandate')) || '—'}</p>
+      <div class="pdf-section-title">Other Points / Comments</div>
+      <p class="pdf-p">${escapeHtml(v('mom-otherComments')) || '—'}</p>
+      <div class="pdf-footer"><span>Portfolio Review &middot; ${escapeHtml(client.name)}</span><span class="gold-dot">&#9679;</span><span>Confidential</span></div>
+    </div>`;
+  renderPdf(html, `MOM_${client.name}_${date}.pdf`);
+}
+
+// ================================================================
+//  SCREEN 1 — GENERATE REVIEW
+// ================================================================
+let reviewClientId = null;
+let allocs = [], funds = [], actions = [];
+
+function loadClientIntoReview() {
+  const id = document.getElementById('review-clientSelect').value;
+  if (!id) { document.getElementById('review-body').style.display = 'none'; return; }
+  reviewClientId = id;
+  const client = getClient(id);
+  document.getElementById('review-body').style.display = 'block';
+  document.getElementById('review-partB').style.display = 'none';
+
+  document.getElementById('review-investorSummary').innerHTML = `
+    <table class="pdf-table" style="font-size:13px;"><thead><tr><th>Investor</th><th>Bias</th><th>Allocation</th></tr></thead>
+    <tbody>${(client.investors||[]).map(i => `<tr><td>${escapeHtml(i.name)}</td><td>${escapeHtml(i.bias)}</td><td>${escapeHtml(i.allocation)}</td></tr>`).join('') || '<tr><td colspan="3">No investors on file — add them in Basic Data of Client.</td></tr>'}</tbody></table>`;
+
+  const lm = latestMandate(client);
+  document.getElementById('review-mandate').value = lm ? lm.text : '';
+
+  const mom = latestMom(client);
+  document.getElementById('review-momStatusList').innerHTML = mom && mom.actionables.length
+    ? mom.actionables.map((a,i) => `
+      <div class="dynamic-row" style="grid-template-columns: 2fr 1fr 1fr; margin-bottom:10px;">
+        <div class="field-group"><label>${escapeHtml(a.investor)||'—'}</label><input type="text" value="${escapeHtml(a.actionable)}" id="revmom-${i}-text"></div>
+        <div class="field-group"><label>Owner / Due</label><input type="text" value="${escapeHtml(a.responsibility)}${a.timeline ? ' · '+escapeHtml(a.timeline):''}" readonly></div>
+        <div class="field-group"><label>Status</label>
+          <select id="revmom-${i}-status" class="status-select" data-status="${a.status}" onchange="this.setAttribute('data-status', this.value)">
+            <option ${a.status==='Done'?'selected':''}>Done</option>
+            <option ${a.status==='In Process'?'selected':''}>In Process</option>
+            <option ${a.status==='Pending'?'selected':''}>Pending</option>
+          </select>
+        </div>
+      </div>`).join('')
+    : '<p class="hint">No prior MOM on file for this client yet.</p>';
+
+  ['allocList','fundList','actionList'].forEach(id => document.getElementById(id).innerHTML = '');
+  allocs = []; funds = []; actions = [];
+  addAlloc(); addFund(); addAction();
+  ['upload-1-status','upload-7-status','upload-8-status'].forEach(id => document.getElementById(id).textContent = '');
+}
+
+function saveReviewPartA() {
+  const client = getClient(reviewClientId);
+  if (!client) { showToast('Select a client first.', true); return; }
+  const mandateText = v('review-mandate');
+  if (mandateText) {
+    client.mandates = client.mandates || [];
+    const lm = latestMandate(client);
+    if (!lm || lm.text !== mandateText) client.mandates.push({ date: todayISO(), text: mandateText });
+  }
+  const mom = latestMom(client);
+  if (mom) {
+    mom.actionables.forEach((a, i) => {
+      const sel = document.getElementById(`revmom-${i}-status`);
+      if (sel) a.status = sel.value;
+    });
+  }
+  saveDB(DB);
+  // TODO(APPS_SCRIPT): write mandate update + MOM status changes back to Sheets.
+  showToast('Review data saved.');
+}
+
+function goToReviewPartB() { document.getElementById('review-partB').style.display = 'block'; }
+
+function addAlloc(data) {
+  const id = uid('alloc'); allocs.push(id);
   const row = document.createElement('div');
-  row.className = 'dynamic-row'; row.id = 'alloc-'+id;
+  row.className = 'dynamic-row'; row.id = id;
   row.style.gridTemplateColumns = '2fr 1fr 1fr 32px';
   row.innerHTML = `
-    <div class="field-group"><label>Asset Class</label><input type="text" id="alloc-name-${id}" placeholder="e.g. Large Cap Equity"></div>
-    <div class="field-group"><label>Current (%)</label><input type="text" id="alloc-cur-${id}" placeholder="40"></div>
-    <div class="field-group"><label>Target (%)</label><input type="text" id="alloc-tgt-${id}" placeholder="45"></div>
-    <button class="btn-remove" onclick="removeRow('alloc-${id}', allocs, ${id})">×</button>
-  `;
+    <div class="field-group"><label>Asset Class</label><input type="text" id="${id}-name" placeholder="e.g. Large Cap Equity" value="${escapeHtml(data?.name||'')}"></div>
+    <div class="field-group"><label>Current (%)</label><input type="text" id="${id}-cur" placeholder="40" value="${escapeHtml(data?.cur||'')}"></div>
+    <div class="field-group"><label>Target (%)</label><input type="text" id="${id}-tgt" placeholder="45" value="${escapeHtml(data?.tgt||'')}"></div>
+    <button class="btn-remove" onclick="document.getElementById('${id}').remove()">&times;</button>`;
   document.getElementById('allocList').appendChild(row);
 }
-
-function addAsset() {
-  const id = Date.now();
-  assets.push(id);
+function addFund(data) {
+  const id = uid('fund'); funds.push(id);
   const row = document.createElement('div');
-  row.className = 'dynamic-row asset-row'; row.id = 'asset-'+id;
+  row.className = 'dynamic-row'; row.id = id;
+  row.style.gridTemplateColumns = '2fr 1fr 1fr 1fr 2fr 32px';
   row.innerHTML = `
-    <div class="field-group"><label>Fund / Asset Name</label><input type="text" id="asset-name-${id}" placeholder="e.g. Mirae Asset Large Cap Fund - Direct"></div>
-    <div class="field-group"><label>Category</label><input type="text" id="asset-cat-${id}" placeholder="e.g. Large Cap MF"></div>
-    <div class="field-group"><label>1Y Return</label><input type="text" id="asset-1y-${id}" placeholder="18.2%"></div>
-    <div class="field-group"><label>3Y CAGR</label><input type="text" id="asset-3y-${id}" placeholder="14.5%"></div>
-    <div class="field-group"><label>Allocation %</label><input type="text" id="asset-alloc-${id}" placeholder="15%"></div>
-    <button class="btn-remove" onclick="removeRow('asset-${id}', assets, ${id})">×</button>
-  `;
-  document.getElementById('assetList').appendChild(row);
-}
-
-function addFund() {
-  const id = Date.now();
-  funds.push(id);
-  const row = document.createElement('div');
-  row.className = 'dynamic-row fund-row'; row.id = 'fund-'+id;
-  row.innerHTML = `
-    <div class="field-group"><label>Fund Name</label><input type="text" id="fund-name-${id}" placeholder="Fund name"></div>
-    <div class="field-group"><label>Value (₹)</label><input type="text" id="fund-val-${id}" placeholder="₹25,00,000"></div>
-    <div class="field-group"><label>XIRR / Return</label><input type="text" id="fund-xirr-${id}" placeholder="16.4%"></div>
+    <div class="field-group"><label>Fund Name</label><input type="text" id="${id}-name" value="${escapeHtml(data?.name||'')}"></div>
+    <div class="field-group"><label>Value (₹)</label><input type="text" id="${id}-val" value="${escapeHtml(data?.val||'')}"></div>
+    <div class="field-group"><label>XIRR</label><input type="text" id="${id}-xirr" value="${escapeHtml(data?.xirr||'')}"></div>
     <div class="field-group"><label>Recommendation</label>
-      <select id="fund-rec-${id}">
-        <option value="Hold">Hold</option><option value="Buy">Buy / Add</option>
-        <option value="Sell">Sell / Redeem</option><option value="Switch">Switch</option>
-        <option value="Review">Under Review</option>
-      </select>
+      <select id="${id}-rec">${['Hold','Buy / Add','Sell / Redeem','Switch','Under Review'].map(o=>`<option ${data?.rec===o?'selected':''}>${o}</option>`).join('')}</select>
     </div>
-    <div class="field-group"><label>Analyst Comment</label><input type="text" id="fund-comment-${id}" placeholder="Brief comment on fund..."></div>
-    <button class="btn-remove" onclick="removeRow('fund-${id}', funds, ${id})">×</button>
-  `;
+    <div class="field-group"><label>Comment</label><input type="text" id="${id}-comment" value="${escapeHtml(data?.comment||'')}"></div>
+    <button class="btn-remove" onclick="document.getElementById('${id}').remove()">&times;</button>`;
   document.getElementById('fundList').appendChild(row);
 }
-
-function addAction() {
-  const id = Date.now();
-  actions.push(id);
+function addAction(data) {
+  const id = uid('action'); actions.push(id);
   const row = document.createElement('div');
-  row.className = 'dynamic-row action-row'; row.id = 'action-'+id;
+  row.className = 'dynamic-row'; row.id = id;
+  row.style.gridTemplateColumns = '2fr 1fr 1fr 32px';
   row.innerHTML = `
-    <div class="field-group"><label>Action / Fund</label><input type="text" id="action-name-${id}" placeholder="e.g. Redeem DSP Mid Cap Fund"></div>
+    <div class="field-group"><label>Action / Fund</label><input type="text" id="${id}-name" value="${escapeHtml(data?.name||'')}"></div>
     <div class="field-group"><label>Type</label>
-      <select id="action-type-${id}">
-        <option>Buy</option><option>Sell</option><option>Switch</option>
-        <option>SIP Start</option><option>SIP Stop</option><option>Rebalance</option>
-      </select>
+      <select id="${id}-type">${['Buy','Sell','Switch','SIP Start','SIP Stop','Rebalance'].map(o=>`<option ${data?.type===o?'selected':''}>${o}</option>`).join('')}</select>
     </div>
-    <div class="field-group"><label>Amount (₹)</label><input type="text" id="action-amt-${id}" placeholder="₹5,00,000"></div>
-    <button class="btn-remove" onclick="removeRow('action-${id}', actions, ${id})">×</button>
-  `;
+    <div class="field-group"><label>Amount (₹)</label><input type="text" id="${id}-amt" value="${escapeHtml(data?.amt||'')}"></div>
+    <button class="btn-remove" onclick="document.getElementById('${id}').remove()">&times;</button>`;
   document.getElementById('actionList').appendChild(row);
 }
 
-function addSim() {
-  const id = Date.now();
-  sims.push(id);
-  const row = document.createElement('div');
-  row.className = 'dynamic-row sim-row'; row.id = 'sim-'+id;
-  row.innerHTML = `
-    <div class="field-group"><label>Scenario Name</label><input type="text" id="sim-name-${id}" placeholder="e.g. Conservative"></div>
-    <div class="field-group"><label>Current Corpus (₹)</label><input type="text" id="sim-corpus-${id}" placeholder="₹2,00,00,000"></div>
-    <div class="field-group"><label>Assumed Return (%)</label><input type="text" id="sim-rate-${id}" placeholder="10%"></div>
-    <div class="field-group"><label>Target Corpus (₹)</label><input type="text" id="sim-target-${id}" placeholder="₹5,00,00,000"></div>
-    <button class="btn-remove" onclick="removeRow('sim-${id}', sims, ${id})">×</button>
-  `;
-  document.getElementById('simList').appendChild(row);
-}
-
-function removeRow(domId, arr, id) {
-  const el = document.getElementById(domId);
-  if (el) el.remove();
-  const i = arr.indexOf(id);
-  if (i > -1) arr.splice(i, 1);
-}
-
-// ============================================================
-//  GENERATE PDF
-// ============================================================
-function generatePDF() {
-  const clientName = v('clientName') || 'Client';
-  const reviewDate = fmtDate(v('reviewDate'));
-  const reviewPeriod = v('reviewPeriod') || '—';
-  const advisorName = v('advisorName') || '—';
-  const clientId = v('clientId') || '—';
-  const horizon = v('horizon') || '—';
-  const riskProfile = v('riskProfile') || '—';
-  const mandate = v('mandate') || '—';
-  const nextReview = fmtDate(v('nextReview'));
-  const miniLabel = clientName + ' · ' + reviewPeriod;
-
-  // Cover
-  setText('pdf-clientName', clientName);
-  setText('pdf-reviewDate', reviewDate);
-  setText('pdf-reviewPeriod', reviewPeriod);
-  setText('pdf-advisorName', advisorName);
-
-  // Part A
-  ['pdf-clientMini','pdf-clientMini3','pdf-clientMini4','pdf-clientMini5'].forEach(id => setText(id, miniLabel));
-  ['pdf-footerClient2','pdf-footerClient3','pdf-footerClient4','pdf-footerClient5'].forEach(id => setText(id, 'Portfolio Review · ' + clientName));
-
-  // Client details grid
-  document.getElementById('pdf-clientDetails').innerHTML = [
-    ['Client Name', clientName], ['Client ID', clientId], ['Risk Profile', riskProfile],
-    ['Review Date', reviewDate], ['Review Period', reviewPeriod], ['Next Review', nextReview],
-    ['Advisor', advisorName], ['Investment Horizon', horizon]
-  ].map(([l,val]) => `<div class="info-cell"><span class="lbl">${l}</span><span class="val">${val||'—'}</span></div>`).join('');
-
-  setText('pdf-riskProfile', riskProfile);
-  setText('pdf-horizon', horizon);
-  setText('pdf-mandate', mandate);
-
-  // Minutes
-  document.getElementById('pdf-minutesTbody').innerHTML = minutes.map(id => {
-    const point = v('min-point-'+id) || '—';
-    const status = v('min-status-'+id) || '';
-    const remarks = v('min-remarks-'+id) || '—';
-    const badge = status ? `<span class="status-badge ${status}">${status}</span>` : '—';
-    return `<tr><td>${point}</td><td>${badge}</td><td>${remarks}</td></tr>`;
-  }).join('') || '<tr><td colspan="3" style="color:#aaa;font-style:italic">No previous minutes recorded.</td></tr>';
-
-  // Returns
-  document.getElementById('pdf-returnCards').innerHTML = [
-    ['XIRR', v('xirr')||'—', 'Portfolio IRR'], ['Realised Return', v('realisedReturn')||'—', 'Booked'],
-    ['Unrealised Return', v('unrealisedReturn')||'—', 'Mark to Market'],
-    ['Portfolio Value', v('portfolioValue')||'—', 'Current'], ['Total Invested', v('totalInvested')||'—', 'Cost'],
-    ['Est. Run Rate', v('runRate')||'—', '3-Year CAGR Basis']
-  ].map(([l,val,sub]) => `<div class="return-card"><span class="rc-lbl">${l}</span><span class="rc-val">${val}</span><div class="rc-sub">${sub}</div></div>`).join('');
-
-  // Alloc bars
-  document.getElementById('pdf-allocBars').innerHTML = allocs.length
-    ? allocs.map(id => {
-        const name = v('alloc-name-'+id)||'—';
-        const cur = parseFloat(v('alloc-cur-'+id))||0;
-        const tgt = parseFloat(v('alloc-tgt-'+id))||0;
-        return `
-          <div class="alloc-row">
-            <div class="alloc-name">${name}</div>
-            <div style="flex:1">
-              <div style="display:flex;align-items:center;gap:3mm;margin-bottom:1.5mm">
-                <div class="alloc-bar-wrap" style="height:4mm"><div class="alloc-bar" style="width:${Math.min(cur,100)}%"></div></div>
-                <span class="alloc-pct">${cur}%</span>
-              </div>
-              <div style="display:flex;align-items:center;gap:3mm">
-                <div class="alloc-bar-wrap" style="height:4mm"><div class="alloc-bar target" style="width:${Math.min(tgt,100)}%"></div></div>
-                <span class="alloc-pct" style="color:var(--gold)">${tgt}%</span>
-              </div>
-            </div>
-          </div>
-        `;
-      }).join('') + `<div style="display:flex;gap:8mm;font-size:8px;color:var(--muted);margin-top:2mm">
-        <span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:8px;background:var(--navy);border-radius:1px;display:inline-block"></span> Current</span>
-        <span style="display:flex;align-items:center;gap:3px"><span style="width:12px;height:8px;background:var(--gold);border-radius:1px;display:inline-block"></span> Target</span>
-      </div>`
-    : '<p style="color:#aaa;font-style:italic;font-size:10px">No allocation data entered.</p>';
-
-  // Assets table
-  document.getElementById('pdf-assetTbody').innerHTML = assets.map(id => `
-    <tr>
-      <td>${v('asset-name-'+id)||'—'}</td>
-      <td>${v('asset-cat-'+id)||'—'}</td>
-      <td class="num">${v('asset-1y-'+id)||'—'}</td>
-      <td class="num">${v('asset-3y-'+id)||'—'}</td>
-      <td class="num">${v('asset-alloc-'+id)||'—'}</td>
-      <td>—</td>
-    </tr>`).join('') || '<tr><td colspan="6" style="color:#aaa;font-style:italic">No assets entered.</td></tr>';
-
-  setText('pdf-overlapNotes', v('overlapNotes')||'No concentration or overlap issues noted.');
-
-  // Fund Comments
-  const tagMap = {Buy:'tag-buy',Sell:'tag-sell','Buy / Add':'tag-buy','Sell / Redeem':'tag-sell',
-    Hold:'tag-hold',Switch:'tag-switch','Under Review':'tag-review'};
-  document.getElementById('pdf-fundComments').innerHTML = funds.map(id => {
-    const rec = v('fund-rec-'+id)||'Hold';
-    const cls = tagMap[rec]||'tag-hold';
-    return `
-      <div class="comment-block" style="margin-bottom:3mm">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2mm">
-          <div class="cb-label">${v('fund-name-'+id)||'—'}</div>
-          <div style="display:flex;gap:8mm;font-size:8.5px;color:var(--muted)">
-            <span>Value: <strong style="color:var(--ink)">${v('fund-val-'+id)||'—'}</strong></span>
-            <span>XIRR: <strong style="color:var(--ink)">${v('fund-xirr-'+id)||'—'}</strong></span>
-            <span class="tag ${cls}">${rec}</span>
-          </div>
-        </div>
-        <p>${v('fund-comment-'+id)||'—'}</p>
-      </div>`;
-  }).join('') || '<p style="color:#aaa;font-style:italic;font-size:10px">No fund analysis entered.</p>';
-
-  // Cap Gains
-  const cgRows = [
-    ['Short Term Capital Gain','Equity', v('stcgEq'), '15% flat tax'],
-    ['Long Term Capital Gain','Equity', v('ltcgEq'), '10% above ₹1L'],
-    ['Short Term Capital Gain','Debt', v('stcgDebt'), 'As per slab'],
-    ['Long Term Capital Gain','Debt', v('ltcgDebt'), '20% with indexation'],
-  ];
-  document.getElementById('pdf-capGainTbody').innerHTML = cgRows
-    .filter(r=>r[2]).map(r=>`<tr><td>${r[0]}</td><td>${r[1]}</td><td class="num">${r[2]}</td><td>${r[3]}</td></tr>`).join('')
-    || '<tr><td colspan="4" style="color:#aaa;font-style:italic">No capital gain data entered.</td></tr>';
-
-  const cgR = v('capGainRemarks');
-  if (cgR) {
-    document.getElementById('pdf-capGainRemarks').style.display='block';
-    setText('pdf-capGainRemarksText', cgR);
-  }
-
-  // Actions
-  document.getElementById('pdf-actionTbody').innerHTML = actions.map(id => `
-    <tr>
-      <td>${v('action-name-'+id)||'—'}</td>
-      <td><span class="tag ${tagMap[v('action-type-'+id)]||'tag-hold'}">${v('action-type-'+id)||'—'}</span></td>
-      <td class="num">${v('action-amt-'+id)||'—'}</td>
-      <td>—</td>
-    </tr>`).join('') || '<tr><td colspan="4" style="color:#aaa;font-style:italic">No actions specified.</td></tr>';
-
-  setText('pdf-investPlan', v('investPlan')||'No additional investment plan specified.');
-
-  // Simulations
-  document.getElementById('pdf-simBoxes').innerHTML = sims.map(id => `
-    <div class="sim-box">
-      <div class="sim-title">${v('sim-name-'+id)||'Scenario'}</div>
-      <div class="sim-grid">
-        <div class="sim-cell"><span class="sim-lbl">Current Corpus</span><span class="sim-val">${v('sim-corpus-'+id)||'—'}</span></div>
-        <div class="sim-cell"><span class="sim-lbl">Return Assumption</span><span class="sim-val">${v('sim-rate-'+id)||'—'}</span></div>
-        <div class="sim-cell"><span class="sim-lbl">Target Corpus</span><span class="sim-val">${v('sim-target-'+id)||'—'}</span></div>
-      </div>
-    </div>`).join('') || '<p style="color:#aaa;font-style:italic;font-size:10px">No simulation scenarios entered.</p>';
-
-  // Print
-  document.getElementById('pdfDoc').style.display = 'block';
-  setTimeout(() => { window.print(); }, 400);
-}
-
-// ============================================================
-//  HELPERS
-// ============================================================
-function v(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
-function setText(id, text) { const el = document.getElementById(id); if(el) el.textContent = text; }
-function fmtDate(d) {
-  if (!d) return '—';
-  try { return new Date(d).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}); }
-  catch(e) { return d; }
-}
-
-// Init with one row each
-window.addEventListener('DOMContentLoaded', () => {
-  addMinute(); addAlloc(); addAsset(); addFund(); addAction(); addSim();
-  document.getElementById('reviewDate').valueAsDate = new Date();
+['1','7','8'].forEach(n => {
+  document.addEventListener('DOMContentLoaded', () => {
+    const input = document.getElementById('upload-' + n);
+    if (input) input.addEventListener('change', () => {
+      const f = input.files[0];
+      document.getElementById('upload-' + n + '-status').textContent = f
+        ? `Loaded "${f.name}" — parsing/analysis engine to be wired up in a later phase.`
+        : '';
+      // TODO: parse CSV client-side (e.g. with PapaParse) and feed results
+      // into the relevant Part B section once the analysis engine is scoped.
+    });
+  });
 });
+
+function collectReviewData() {
+  const client = getClient(reviewClientId);
+  return {
+    client,
+    xirr: v('xirr'), realisedReturn: v('realisedReturn'), unrealisedReturn: v('unrealisedReturn'),
+    rebalanceNotes: v('rebalanceNotes'), assetsSummary: v('assetsSummary'),
+    allocRows: allocs.map(id => ({ name: v(id+'-name'), cur: v(id+'-cur'), tgt: v(id+'-tgt') })).filter(r=>r.name),
+    fundRows: funds.map(id => ({ name: v(id+'-name'), val: v(id+'-val'), xirr: v(id+'-xirr'), rec: v(id+'-rec'), comment: v(id+'-comment') })).filter(r=>r.name),
+    actionRows: actions.map(id => ({ name: v(id+'-name'), type: v(id+'-type'), amt: v(id+'-amt') })).filter(r=>r.name),
+  };
+}
+
+function saveReviewPartB() {
+  if (!reviewClientId) { showToast('Select a client first.', true); return; }
+  const data = collectReviewData();
+  DB.clients[reviewClientId].lastReview = { ...data, client: undefined, savedAt: todayISO() };
+  saveDB(DB);
+  // TODO(APPS_SCRIPT): persist Part B figures + write the rendered PDF/CSV
+  // into the client's Drive folder.
+  showToast('Investment portfolio data saved.');
+}
+
+function exportReviewCsv() {
+  if (!reviewClientId) { showToast('Select a client first.', true); return; }
+  const d = collectReviewData();
+  const lines = [
+    ['Client', d.client.name],
+    ['XIRR', d.xirr], ['Realised Return', d.realisedReturn], ['Unrealised Return', d.unrealisedReturn],
+    [],
+    ['Asset Class','Current %','Target %'],
+    ...d.allocRows.map(r => [r.name, r.cur, r.tgt]),
+    [],
+    ['Fund','Value','XIRR','Recommendation','Comment'],
+    ...d.fundRows.map(r => [r.name, r.val, r.xirr, r.rec, r.comment]),
+    [],
+    ['Action','Type','Amount'],
+    ...d.actionRows.map(r => [r.name, r.type, r.amt]),
+  ];
+  downloadCsv(`Review_${d.client.name}.csv`, lines);
+}
+
+function exportReviewPdf() {
+  if (!reviewClientId) { showToast('Select a client first.', true); return; }
+  const d = collectReviewData();
+  const today = fmtDate(todayISO());
+
+  const cover = `
+    <div class="pdf-page pdf-cover">
+      <div class="brand">Portfolio Review</div>
+      <div class="doc-title">Portfolio Review</div>
+      <div class="for-line">For</div>
+      <div class="client-name">${escapeHtml(d.client.name)}</div>
+      <div class="meta-row">
+        <div class="meta-cell"><span class="lbl">Date</span><span class="val">${today}</span></div>
+        <div class="meta-cell"><span class="lbl">Investors</span><span class="val">${(d.client.investors||[]).length}</span></div>
+      </div>
+    </div>`;
+
+  const partA = `
+    <div class="pdf-page">
+      <div class="pdf-header"><span class="h-title">Part A &middot; Client Overview</span><span class="h-client">${escapeHtml(d.client.name)}</span></div>
+      <div class="pdf-section-title">Investors</div>
+      <table class="pdf-table"><thead><tr><th>Investor</th><th>Bias</th><th>Allocation</th></tr></thead>
+        <tbody>${(d.client.investors||[]).map(i=>`<tr><td>${escapeHtml(i.name)}</td><td>${escapeHtml(i.bias)}</td><td>${escapeHtml(i.allocation)}</td></tr>`).join('') || '<tr><td colspan="3">—</td></tr>'}</tbody></table>
+      <div class="pdf-section-title">Mandate</div>
+      <p class="pdf-p">${escapeHtml(v('review-mandate')) || '—'}</p>
+      <div class="pdf-section-title">Prior MOM — Action Status</div>
+      <table class="pdf-table"><thead><tr><th>Investor</th><th>Actionable</th><th>Status</th></tr></thead>
+        <tbody>${(latestMom(d.client)?.actionables||[]).map((a,i)=>{
+          const sel = document.getElementById(`revmom-${i}-status`);
+          const status = sel ? sel.value : a.status;
+          return `<tr><td>${escapeHtml(a.investor)||'—'}</td><td>${escapeHtml(a.actionable)||'—'}</td><td><span class="pdf-badge ${status.replace(' ','')}">${status}</span></td></tr>`;
+        }).join('') || '<tr><td colspan="3">No prior MOM on file.</td></tr>'}</tbody></table>
+      <div class="pdf-footer"><span>Portfolio Review &middot; ${escapeHtml(d.client.name)}</span><span class="gold-dot">&#9679;</span><span>Page 2</span></div>
+    </div>`;
+
+  const partB = `
+    <div class="pdf-page">
+      <div class="pdf-header"><span class="h-title">Part B &middot; Investment Portfolio</span><span class="h-client">${escapeHtml(d.client.name)}</span></div>
+      <div class="pdf-section-title">Returns Summary</div>
+      <div class="pdf-info-grid">
+        <div class="pdf-info-cell"><span class="l">XIRR</span><span class="v">${escapeHtml(d.xirr)||'—'}</span></div>
+        <div class="pdf-info-cell"><span class="l">Realised Return</span><span class="v">${escapeHtml(d.realisedReturn)||'—'}</span></div>
+        <div class="pdf-info-cell"><span class="l">Unrealised Return</span><span class="v">${escapeHtml(d.unrealisedReturn)||'—'}</span></div>
+      </div>
+      <div class="pdf-section-title">Current vs Target Allocation</div>
+      <table class="pdf-table"><thead><tr><th>Asset Class</th><th>Current %</th><th>Target %</th></tr></thead>
+        <tbody>${d.allocRows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.cur)}</td><td>${escapeHtml(r.tgt)}</td></tr>`).join('') || '<tr><td colspan="3">No allocation data entered.</td></tr>'}</tbody></table>
+      <div class="pdf-section-title">Rebalancing Notes</div>
+      <p class="pdf-p">${escapeHtml(d.rebalanceNotes) || '—'}</p>
+      <div class="pdf-section-title">Assets Held — Performance / Risk Summary</div>
+      <p class="pdf-p">${escapeHtml(d.assetsSummary) || '—'}</p>
+      <div class="pdf-footer"><span>Portfolio Review &middot; ${escapeHtml(d.client.name)}</span><span class="gold-dot">&#9679;</span><span>Page 3</span></div>
+    </div>`;
+
+  const partC = `
+    <div class="pdf-page">
+      <div class="pdf-header"><span class="h-title">Fund Commentary &amp; Action Points</span><span class="h-client">${escapeHtml(d.client.name)}</span></div>
+      <div class="pdf-section-title">Fund-Level Commentary</div>
+      <table class="pdf-table"><thead><tr><th>Fund</th><th>Value</th><th>XIRR</th><th>Reco.</th><th>Comment</th></tr></thead>
+        <tbody>${d.fundRows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.val)||'—'}</td><td>${escapeHtml(r.xirr)||'—'}</td><td>${escapeHtml(r.rec)}</td><td>${escapeHtml(r.comment)||'—'}</td></tr>`).join('') || '<tr><td colspan="5">No funds entered.</td></tr>'}</tbody></table>
+      <div class="pdf-section-title">Action Points</div>
+      <table class="pdf-table"><thead><tr><th>Action / Fund</th><th>Type</th><th>Amount</th></tr></thead>
+        <tbody>${d.actionRows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.type)}</td><td>${escapeHtml(r.amt)||'—'}</td></tr>`).join('') || '<tr><td colspan="3">No actions specified.</td></tr>'}</tbody></table>
+      <div class="pdf-footer"><span>Portfolio Review &middot; ${escapeHtml(d.client.name)}</span><span class="gold-dot">&#9679;</span><span>Page 4</span></div>
+    </div>`;
+
+  renderPdf(cover + partA + partB + partC, `Portfolio_Review_${d.client.name}.pdf`);
+}
+
+// ================================================================
+//  PDF RENDER ENGINE (html2canvas + jsPDF)
+//  Pinning every colour as a literal hex value above, plus
+//  -webkit-print-color-adjust:exact, means the export looks identical
+//  on a phone, a laptop, light mode or dark mode.
+// ================================================================
+function renderPdf(innerHtml, filename) {
+  showToast('Building PDF…');
+  const root = document.getElementById('pdfRoot');
+  root.innerHTML = innerHtml;
+  const pages = [...root.children];
+  if (!pages.length) { showToast('Nothing to export.', true); return; }
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'px', format: [794, 1123], hotfixes: ['px_scaling'] });
+
+  let chain = Promise.resolve();
+  pages.forEach((page, i) => {
+    chain = chain.then(() => html2canvas(page, { scale: 2, backgroundColor: '#ffffff', useCORS: true })
+      .then(canvas => {
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        if (i > 0) pdf.addPage([794, 1123]);
+        pdf.addImage(imgData, 'JPEG', 0, 0, 794, 1123);
+      }));
+  });
+  chain.then(() => {
+    pdf.save(filename);
+    root.innerHTML = '';
+    showToast('PDF downloaded.');
+  }).catch(err => {
+    console.error(err);
+    showToast('PDF generation failed — see console.', true);
+  });
+}
+
+// ================================================================
+//  INIT
+// ================================================================
+window.addEventListener('DOMContentLoaded', () => {
+  refreshClientDropdowns();
+  addInvestorRow();
+  document.addEventListener('click', (e) => {
+    const box = document.getElementById('mom-suggestions');
+    if (box && !e.target.closest('#mom-search') && !e.target.closest('#mom-suggestions')) box.style.display = 'none';
+  });
+});
+
 </script>
 </body>
 </html>
