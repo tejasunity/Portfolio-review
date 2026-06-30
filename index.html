@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pranitya Portfolio Review</title>
+<title>Portfolio Review</title>
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <!-- PDF engine: html2canvas renders the on-screen PDF layout to a canvas, jsPDF assembles the canvas into
      a paginated PDF. This guarantees identical colours on every device (phone, laptop, any browser),
@@ -260,11 +260,33 @@ input, select, textarea { font-family: var(--font); font-size: 14px; }
 <header class="app-header">
   <div class="logo-mark">PR</div>
   <div class="titles">
-    <h1>Pranitya Portfolio Review</h1>
+    <h1>Portfolio Review</h1>
     <span class="tag">Wealth Advisory Toolkit</span>
   </div>
   <button class="back-btn" id="backBtn" onclick="goHome()">&larr; Home</button>
+  <button class="back-btn" id="settingsBtn" onclick="toggleSettings()" style="margin-left:8px; display:none;">&#9881; Cloud Settings</button>
 </header>
+
+<div class="card" id="settingsPanel" style="display:none; max-width:1080px; margin:0 auto; margin-top:16px;">
+  <div class="card-header">
+    <h3>Google Drive / Sheets Connection</h3>
+    <span class="hint" id="cloudStatusHint">Not connected — saving locally only</span>
+  </div>
+  <div class="field-grid">
+    <div class="field-group" style="grid-column: span 2;">
+      <label>Apps Script Web App URL</label>
+      <input type="text" id="webAppUrlInput" placeholder="https://script.google.com/macros/s/XXXXXXXX/exec">
+    </div>
+    <div class="field-group">
+      <label>&nbsp;</label>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-primary" onclick="saveWebAppUrl()">Save &amp; Test</button>
+        <button class="btn btn-outline" onclick="disconnectCloud()">Disconnect</button>
+      </div>
+    </div>
+  </div>
+  <p class="hint" style="margin-top:10px;">Paste the URL you get after deploying the Code.gs script as a Web App (see the setup guide). Once connected, every save here also writes into your Google Drive client folders and the master Google Sheet.</p>
+</div>
 
 <div class="app-body">
 
@@ -601,6 +623,95 @@ function saveDB(db) {
 }
 let DB = loadDB();
 
+// ================================================================
+//  CLOUD API LAYER — talks to the Google Apps Script Web App.
+//  Falls back to localStorage-only mode automatically if no URL is
+//  configured, or if a call fails (so the tool never gets stuck).
+// ================================================================
+const CLOUD_URL_KEY = 'PR_WEBAPP_URL';
+function getWebAppUrl() { return localStorage.getItem(CLOUD_URL_KEY) || 'https://script.google.com/macros/s/AKfycbz2xG2wI56o57YY7ND9w80o4XT4kh7UenBxMitaAI34zrBrA-EvjxbbLbf80aVf5OIx1Q/exec'; }
+function isCloudConfigured() { return !!getWebAppUrl(); }
+
+async function apiCall(action, payload) {
+  const url = getWebAppUrl();
+  if (!url) throw new Error('Cloud not connected');
+  // Body sent as plain text (not application/json) on purpose: it keeps this
+  // a "simple request" so the browser skips a CORS preflight, which Apps
+  // Script web apps don't reliably answer.
+  const res = await fetch(url, { method: 'POST', body: JSON.stringify({ action, payload }) });
+  if (!res.ok) throw new Error('Network error ' + res.status);
+  const json = await res.json();
+  if (!json.ok) throw new Error(json.error || 'Unknown server error');
+  return json.data;
+}
+
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  document.getElementById('webAppUrlInput').value = getWebAppUrl();
+}
+
+async function saveWebAppUrl() {
+  const url = v('webAppUrlInput');
+  if (!url) { showToast('Enter a Web App URL first.', true); return; }
+  localStorage.setItem(CLOUD_URL_KEY, url);
+  updateCloudStatusHint('Testing connection…');
+  try {
+    await apiCall('listClients', {});
+    updateCloudStatusHint('Connected — saves now sync to Google Drive/Sheets.');
+    showToast('Connected to Google Drive.');
+    await syncAllFromCloud();
+  } catch (e) {
+    updateCloudStatusHint('Could not connect: ' + e.message);
+    showToast('Connection failed: ' + e.message, true);
+  }
+}
+
+function disconnectCloud() {
+  localStorage.removeItem(CLOUD_URL_KEY);
+  document.getElementById('webAppUrlInput').value = '';
+  updateCloudStatusHint('Not connected — saving locally only');
+  showToast('Disconnected. Now saving locally only.');
+}
+
+function updateCloudStatusHint(text) {
+  const el = document.getElementById('cloudStatusHint');
+  if (el) el.textContent = text;
+}
+
+// Pulls the client list (and, lazily, full client records) from the
+// Apps Script backend into the local cache so the rest of the app —
+// which reads from DB.clients synchronously — keeps working unchanged.
+async function syncAllFromCloud() {
+  if (!isCloudConfigured()) return;
+  try {
+    const list = await apiCall('listClients', {});
+    for (const c of list) {
+      if (!DB.clients[c.id]) DB.clients[c.id] = { id: c.id, name: c.name, investors: [], mandates: [], moms: [] };
+      else DB.clients[c.id].name = c.name;
+    }
+    saveDB(DB);
+    refreshClientDropdowns();
+  } catch (e) {
+    console.error('Cloud sync failed, continuing with local cache', e);
+  }
+}
+
+// Fetches one client's full record (investors/mandates/moms) from the
+// cloud and merges it into the local cache. Call this whenever a client
+// is selected on any screen, before reading from DB.clients.
+async function refreshClientFromCloud(clientId) {
+  if (!isCloudConfigured() || !clientId) return;
+  try {
+    const full = await apiCall('getClient', { clientId });
+    DB.clients[clientId] = { ...DB.clients[clientId], ...full };
+    saveDB(DB);
+  } catch (e) {
+    showToast('Could not refresh from cloud, showing last-saved local copy.', true);
+  }
+}
+
+
 function clientList() { return Object.values(DB.clients).sort((a,b) => a.name.localeCompare(b.name)); }
 function getClient(id) { return DB.clients[id]; }
 function latestMandate(client) {
@@ -666,10 +777,11 @@ function newClientInBasicData() {
   addInvestorRow();
 }
 
-function loadClientIntoBasicData() {
+async function loadClientIntoBasicData() {
   const id = document.getElementById('bd-clientSelect').value;
   if (!id) { newClientInBasicData(); return; }
   bdCurrentClientId = id;
+  await refreshClientFromCloud(id);
   const client = getClient(id);
   document.getElementById('bd-clientName').value = client.name;
   document.getElementById('investorList').innerHTML = '';
@@ -694,7 +806,7 @@ function addInvestorRow(data) {
   document.getElementById('investorList').appendChild(row);
 }
 
-function saveBasicData() {
+async function saveBasicData() {
   const name = v('bd-clientName');
   if (!name) { showToast('Client name is required.', true); return; }
 
@@ -711,28 +823,41 @@ function saveBasicData() {
 
   if (!investors.length) { showToast('Add at least one investor.', true); return; }
 
-  const id = bdCurrentClientId || uid('client');
-  const existing = DB.clients[id];
   const mandateText = v('bd-mandate');
+  let id = bdCurrentClientId;
+
+  if (isCloudConfigured()) {
+    try {
+      const res = await apiCall('saveClient', { id, name, investors, mandateText });
+      id = res.id;
+      showToast('Saved to Google Drive &amp; Sheets.');
+      await refreshClientFromCloud(id);
+    } catch (e) {
+      showToast('Cloud save failed (' + e.message + ') — saved locally instead.', true);
+      id = id || uid('client');
+      writeBasicDataLocally(id, name, investors, mandateText);
+    }
+  } else {
+    id = id || uid('client');
+    writeBasicDataLocally(id, name, investors, mandateText);
+    showToast('Saved locally (connect Cloud Settings to sync to Google Drive).');
+  }
+
+  bdCurrentClientId = id;
+  refreshClientDropdowns();
+  document.getElementById('bd-clientSelect').value = id;
+}
+
+function writeBasicDataLocally(id, name, investors, mandateText) {
+  const existing = DB.clients[id];
   const mandates = existing?.mandates ? [...existing.mandates] : [];
   if (mandateText && !mandates.length) {
     mandates.push({ date: todayISO(), text: mandateText });
   } else if (mandateText && mandates.length && mandates[mandates.length-1].text !== mandateText) {
-    // first-entry mandate edited before any MOM exists — keep single record in sync
-    mandates[0] = { date: mandates[0].date, text: mandateText };
+    mandates.push({ date: todayISO(), text: mandateText });
   }
-
-  DB.clients[id] = {
-    id, name, investors, mandates,
-    moms: existing?.moms || [],
-  };
+  DB.clients[id] = { id, name, investors, mandates, moms: existing?.moms || [] };
   saveDB(DB);
-  // TODO(APPS_SCRIPT): mirror this write to the client's "MoM and Mandates"
-  // Google Sheet (Investors tab) and create the client's Drive subfolder if new.
-  bdCurrentClientId = id;
-  refreshClientDropdowns();
-  document.getElementById('bd-clientSelect').value = id;
-  showToast('Client data saved.');
 }
 
 // ================================================================
@@ -752,8 +877,9 @@ function momSearchInput() {
   box.style.display = 'block';
 }
 
-function momSelectClient(id) {
+async function momSelectClient(id) {
   momSelectedClientId = id;
+  await refreshClientFromCloud(id);
   const client = getClient(id);
   document.getElementById('mom-search').value = client.name;
   document.getElementById('mom-suggestions').style.display = 'none';
@@ -782,18 +908,32 @@ function momUpdateMandate() {
   document.getElementById('mom-mandateText').value = '';
 }
 
-function saveMandateUpdate() {
+async function saveMandateUpdate() {
   const client = requireMomClient();
   if (!client) return;
   const text = v('mom-mandateText');
   if (!text) { showToast('Enter the updated mandate.', true); return; }
-  client.mandates = client.mandates || [];
-  client.mandates.push({ date: todayISO(), text });
-  saveDB(DB);
-  // TODO(APPS_SCRIPT): append a row to the Mandates tab of this client's sheet.
-  showToast('Mandate updated.');
+
+  if (isCloudConfigured()) {
+    try {
+      await apiCall('saveMandate', { clientId: client.id, text });
+      await refreshClientFromCloud(client.id);
+      showToast('Mandate updated in Google Sheets.');
+    } catch (e) {
+      showToast('Cloud save failed (' + e.message + ') — saved locally instead.', true);
+      client.mandates = client.mandates || [];
+      client.mandates.push({ date: todayISO(), text });
+      saveDB(DB);
+    }
+  } else {
+    client.mandates = client.mandates || [];
+    client.mandates.push({ date: todayISO(), text });
+    saveDB(DB);
+    showToast('Mandate updated locally.');
+  }
   document.getElementById('mom-mandateText').value = '';
 }
+
 
 function momViewList() {
   const client = requireMomClient();
@@ -880,7 +1020,7 @@ function collectMomActionables() {
   })).filter(a => a.investor || a.actionable);
 }
 
-function saveMom() {
+async function saveMom() {
   const client = requireMomClient();
   if (!client) return;
   const date = v('mom-date');
@@ -895,22 +1035,31 @@ function saveMom() {
     otherComments: v('mom-otherComments'),
   };
 
+  if (isCloudConfigured()) {
+    try {
+      await apiCall('saveMom', { clientId: client.id, mom });
+      await refreshClientFromCloud(client.id);
+      showToast('MOM saved to Google Sheets.');
+    } catch (e) {
+      showToast('Cloud save failed (' + e.message + ') — saved locally instead.', true);
+      writeMomLocally(client, mom, date);
+    }
+  } else {
+    writeMomLocally(client, mom, date);
+    showToast('MOM saved locally.');
+  }
+  momCurrentEditingId = mom.id;
+}
+
+function writeMomLocally(client, mom, date) {
   client.moms = client.moms || [];
   const idx = client.moms.findIndex(m => m.id === mom.id);
   if (idx > -1) client.moms[idx] = mom; else client.moms.push(mom);
-
   if (mom.reviewMandate) {
     client.mandates = client.mandates || [];
     client.mandates.push({ date, text: mom.reviewMandate });
-    // TODO(APPS_SCRIPT): append to Mandates tab with this date — per the
-    // narration, a filled Review Mandate box must flow into the Mandates log.
   }
-
   saveDB(DB);
-  // TODO(APPS_SCRIPT): save into this client's "Minutes of Meeting" sheet
-  // inside their Drive folder.
-  momCurrentEditingId = mom.id;
-  showToast('MOM saved.');
 }
 
 function exportMomCsv() {
@@ -998,10 +1147,11 @@ function exportMomPdf() {
 let reviewClientId = null;
 let allocs = [], funds = [], actions = [];
 
-function loadClientIntoReview() {
+async function loadClientIntoReview() {
   const id = document.getElementById('review-clientSelect').value;
   if (!id) { document.getElementById('review-body').style.display = 'none'; return; }
   reviewClientId = id;
+  await refreshClientFromCloud(id);
   const client = getClient(id);
   document.getElementById('review-body').style.display = 'block';
   document.getElementById('review-partB').style.display = 'none';
@@ -1035,15 +1185,13 @@ function loadClientIntoReview() {
   ['upload-1-status','upload-7-status','upload-8-status'].forEach(id => document.getElementById(id).textContent = '');
 }
 
-function saveReviewPartA() {
+async function saveReviewPartA() {
   const client = getClient(reviewClientId);
   if (!client) { showToast('Select a client first.', true); return; }
   const mandateText = v('review-mandate');
-  if (mandateText) {
-    client.mandates = client.mandates || [];
-    const lm = latestMandate(client);
-    if (!lm || lm.text !== mandateText) client.mandates.push({ date: todayISO(), text: mandateText });
-  }
+  const lm = latestMandate(client);
+  const mandateChanged = mandateText && (!lm || lm.text !== mandateText);
+
   const mom = latestMom(client);
   if (mom) {
     mom.actionables.forEach((a, i) => {
@@ -1051,9 +1199,23 @@ function saveReviewPartA() {
       if (sel) a.status = sel.value;
     });
   }
-  saveDB(DB);
-  // TODO(APPS_SCRIPT): write mandate update + MOM status changes back to Sheets.
-  showToast('Review data saved.');
+
+  if (isCloudConfigured()) {
+    try {
+      if (mandateChanged) await apiCall('saveMandate', { clientId: client.id, text: mandateText });
+      if (mom) await apiCall('saveMom', { clientId: client.id, mom });
+      await refreshClientFromCloud(client.id);
+      showToast('Review data saved to Google Sheets.');
+    } catch (e) {
+      showToast('Cloud save failed (' + e.message + ') — saved locally instead.', true);
+      if (mandateChanged) client.mandates.push({ date: todayISO(), text: mandateText });
+      saveDB(DB);
+    }
+  } else {
+    if (mandateChanged) { client.mandates = client.mandates || []; client.mandates.push({ date: todayISO(), text: mandateText }); }
+    saveDB(DB);
+    showToast('Review data saved locally.');
+  }
 }
 
 function goToReviewPartB() { document.getElementById('review-partB').style.display = 'block'; }
@@ -1270,6 +1432,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const box = document.getElementById('mom-suggestions');
     if (box && !e.target.closest('#mom-search') && !e.target.closest('#mom-suggestions')) box.style.display = 'none';
   });
+  if (isCloudConfigured()) {
+    updateCloudStatusHint('Connecting…');
+    syncAllFromCloud().then(() => updateCloudStatusHint('Connected — saves sync to Google Drive/Sheets.'))
+      .catch(() => updateCloudStatusHint('Could not reach the cloud backend — using local data.'));
+  }
 });
 
 </script>
